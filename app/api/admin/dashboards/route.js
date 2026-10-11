@@ -8,8 +8,8 @@ import { LAYOUTS, LAYOUT_IDS, DEFAULT_LAYOUT_ID } from '../../../../lib/theme/la
 import { guard, json, bodyOf } from '../../../../lib/adminRoute';
 
 const KEY = 'admin.dashboards';
-const SECTIONS = ['analytics', 'currency', 'executive', 'breeze', 'stellar', 'starpro'];
-async function state() { return (await getConfig(KEY)) || { section: 'analytics', layout: DEFAULT_LAYOUT_ID }; }
+const SECTIONS = ['superieur', 'analytics', 'currency', 'executive', 'breeze', 'stellar', 'starpro'];
+async function state() { return (await getConfig(KEY)) || { section: 'superieur', layout: 'superieur-dark' }; }
 
 export async function GET(req) {
   const { session, error } = await guard(req, 'dashboard:view');
@@ -17,7 +17,7 @@ export async function GET(req) {
   const s = await state();
   return json({
     ok: true, configured: true, status: 'connected',
-    section: SECTIONS.includes(s.section) ? s.section : 'analytics',
+    section: SECTIONS.includes(s.section) ? s.section : 'superieur',
     layout: LAYOUT_IDS.includes(s.layout) ? s.layout : DEFAULT_LAYOUT_ID,
     sections: SECTIONS, layouts: LAYOUTS,
     rows: LAYOUTS.map((l) => ({ id: l.id, label: l.label, family: l.family, nav: l.nav, mode: l.mode, note: l.note })),

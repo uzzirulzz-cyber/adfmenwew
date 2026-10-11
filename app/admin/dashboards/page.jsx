@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { PageHeader, Panel, asText } from '../../../components/ui';
 import { SECTIONS } from '../../../components/DashboardSections';
+import { applyTheme, THEME_PRESETS } from '../../../lib/theme';
+
+const PREMIUM = THEME_PRESETS.find((p) => p.preset === 'superieur-violet');
 
 function csrf() {
   if (typeof document === 'undefined') return '';
@@ -60,12 +63,38 @@ export default function DashboardsPage() {
   const current = SECTIONS.find((s) => s.id === prefs.section) || SECTIONS[0];
   const Section = current.Component;
 
+  // One click wires the three parts of the premium command centre together:
+  // the Superieur section, the Superieur Midnight layout, and the matching
+  // Superieur Violet theme published to the workspace.
+  async function applyPremium() {
+    setBusy(true); setNotice(null);
+    try {
+      const res = await fetch('/api/admin/config', {
+        method: 'POST', credentials: 'include',
+        headers: { 'content-type': 'application/json', 'x-csrf-token': csrf() },
+        body: JSON.stringify({ action: 'theme:publish', theme: PREMIUM }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) { setNotice(asText(j.error || `HTTP ${res.status}`)); setBusy(false); return; }
+      applyTheme(PREMIUM, PREMIUM.appearance);
+      try { window.localStorage.setItem('pb_theme_mode', PREMIUM.appearance); } catch { /* storage blocked */ }
+      await save({ section: 'superieur', layout: 'superieur-dark' });
+      setNotice('Premium command centre applied — Superieur section, Superieur Midnight layout, Superieur Violet theme.');
+    } catch (e) { setNotice(String(e && e.message ? e.message : e)); }
+    setBusy(false);
+  }
+
   return (
     <div className="pb-dash">
       <PageHeader
         title="Dashboards"
-        subtitle="Four dashboard sections restyled with this admin's own Bootstrap 5 markup — layout patterns only, no third-party template code. Every figure is read from the existing endpoints."
-        actions={<button type="button" className="btn btn-sm btn-outline-secondary" onClick={load} disabled={busy}>{busy ? 'Working…' : 'Refresh'}</button>}
+        subtitle="Seven dashboard sections restyled with this admin's own Bootstrap 5 markup — layout patterns only, no third-party template code. Every figure is read from the existing endpoints."
+        actions={
+          <div className="d-flex gap-2">
+            <button type="button" className="btn btn-sm btn-primary" onClick={applyPremium} disabled={busy}>Premium command centre</button>
+            <button type="button" className="btn btn-sm btn-outline-secondary" onClick={load} disabled={busy}>{busy ? 'Working…' : 'Refresh'}</button>
+          </div>
+        }
       />
 
       <div className="pb-hbar mb-3">

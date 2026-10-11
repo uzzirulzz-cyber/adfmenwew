@@ -492,7 +492,253 @@ export function SectionStarPro({ overview, analytics, finance }) {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Premium section — the "Superieur" pattern: a hero banner carrying a  */
+/* live ticker strip, delta KPI cards, country-style breakdown lists, a  */
+/* task/readiness card and an invoice ledger with status pills.         */
+/* Layout pattern only — this admin's own Bootstrap 5 markup; no         */
+/* third-party CSS, JS or imagery. Every figure is read from the         */
+/* existing endpoints, and a delta is only shown when two comparable     */
+/* windows really exist (otherwise an em dash with the reason).          */
+/* ------------------------------------------------------------------ */
+
+const DAY_LABEL = (iso) => {
+  const d = new Date(`${iso}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? String(iso).slice(5) : d.toLocaleDateString(undefined, { weekday: 'short' });
+};
+
+const pillTone = (s) => {
+  const t = String(s || '').toLowerCase();
+  if (/(paid|settled|complete|success|deliver)/.test(t)) return 'success';
+  if (/(pending|processing|unpaid|review|await|open)/.test(t)) return 'warning';
+  if (/(fail|refund|cancel|declin|expire|void)/.test(t)) return 'danger';
+  return 'secondary';
+};
+
+function Delta({ value, basis }) {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return <span className="pb-sup-delta flat">— <span className="pb-sup-delta-note">{basis}</span></span>;
+  }
+  const up = value >= 0;
+  return (
+    <span className={`pb-sup-delta ${up ? 'up' : 'down'}`}>
+      {up ? '▲' : '▼'} {up ? '+' : ''}{value}% <span className="pb-sup-delta-note">{basis}</span>
+    </span>
+  );
+}
+
+function SupKpi({ title, value, note, rule, delta, deltaBasis, href }) {
+  return (
+    <div className="pb-sup-kpi h-100">
+      <div className="d-flex justify-content-between align-items-start gap-2">
+        <div className="pb-sup-kpi-title">{title}</div>
+        {href && <a className="pb-sup-pill" href={href}>View</a>}
+      </div>
+      <div className="pb-sup-kpi-value">{value}</div>
+      <div className="pb-sup-rule"><i style={{ width: `${Math.max(4, Math.min(100, rule || 0))}%` }} /></div>
+      <div className="pb-sup-kpi-note">{note}</div>
+      <div className="mt-1"><Delta value={delta} basis={deltaBasis} /></div>
+    </div>
+  );
+}
+
+function SupRow({ name, value, pct: p, color, note }) {
+  return (
+    <div className="pb-sup-row">
+      <span className="pb-sup-dot" style={{ background: color || 'var(--pb-accent)' }} />
+      <div className="pb-sup-row-main">
+        <div className="d-flex justify-content-between gap-2">
+          <span className="pb-sup-row-name">{name}</span>
+          <span className="pb-sup-row-val">{value}</span>
+        </div>
+        <div className="pb-sup-rule sm"><i style={{ width: `${Math.max(3, Math.min(100, p || 0))}%`, background: color || 'var(--pb-accent)' }} /></div>
+        {note && <div className="pb-sup-row-note">{note}</div>}
+      </div>
+    </div>
+  );
+}
+
+export function SectionSuperieur({ overview, finance }) {
+  const k = (overview && overview.kpis) || {};
+  const f = (finance && finance.headline) || {};
+  const byDay = ((finance && finance.byDay) || []).map((d) => ({ date: d.date, pkr: Number(d.pkr) || 0 }));
+  const byGateway = (finance && finance.byGateway) || [];
+  const byApp = (overview && overview.byApp) || [];
+  const health = (overview && overview.health) || {};
+  const settlements = (finance && finance.settlements) || [];
+
+  // Two real 7-day windows over the dated paid series (PKR only). No window,
+  // no percentage — the delta stays an em dash with its reason.
+  const sum = (a) => a.reduce((t, b) => t + b.pkr, 0);
+  const last7 = byDay.slice(-7), prev7 = byDay.slice(-14, -7);
+  const cur = sum(last7), prev = sum(prev7);
+  const deltaPct = prev > 0 ? Math.round(((cur - prev) / prev) * 100) : null;
+  const deltaBasis = prev7.length ? 'vs previous 7 days' : 'no previous window';
+  const ticker = byDay.slice(-4);
+
+  const maxApp = Math.max(1, ...byApp.map((a) => a.pkr || 0));
+  const maxGw = Math.max(1, ...byGateway.map((g) => g.pkr || 0));
+  const connected = health.connected ?? 0, total = health.total ?? 0;
+  const readiness = total ? Math.round((connected / total) * 100) : null;
+  const pending = health.unconfigured || [];
+  const gross = f.paidPkr ?? k.revenuePkr ?? 0, refunded = f.refundedPkr ?? 0, net = f.netPkr ?? 0;
+  const paidCount = f.paidCount ?? k.paidOrders ?? 0;
+  const pendingCount = k.pendingOrders ?? 0;
+  const orderTotal = paidCount + pendingCount;
+
+  return (
+    <>
+      {/* ---- hero banner + live ticker ---- */}
+      <div className="pb-sup-hero mb-3">
+        <div className="pb-sup-hero-top">
+          <span className="pb-sup-tag">New</span>
+          <div className="pb-sup-hero-actions">
+            <a href="/admin/finance" title="Open finance">⤢</a>
+            <a href="#superieur" title="Jump to sections">↕</a>
+          </div>
+        </div>
+        <h2 className="pb-sup-hero-title">Every application, one ledger</h2>
+        <p className="pb-sup-hero-sub">
+          Paid revenue across the five PlayBeat applications, counted once per source record.
+          {' '}{fmtNumber(connected)} of {fmtNumber(total)} applications connected.
+        </p>
+        <div className="pb-sup-hero-figure">
+          <div className="pb-sup-hero-value">{dash(fmtMoney(net))}</div>
+          <div className="pb-sup-hero-label">net revenue · reporting currency PKR</div>
+        </div>
+        <div className="pb-sup-ticker">
+          {ticker.length ? ticker.map((d, i) => {
+            const before = i > 0 ? ticker[i - 1].pkr : null;
+            const dd = before !== null && before > 0 ? Math.round(((d.pkr - before) / before) * 100) : null;
+            const dir = dd === null ? 'flat' : dd >= 0 ? 'up' : 'down';
+            return (
+              <div className="pb-sup-tick" key={d.date}>
+                <div className={`pb-sup-tick-dir ${dir}`}>
+                  {dd === null ? '•' : dd >= 0 ? '▲' : '▼'} {dd === null ? '—' : `${dd >= 0 ? '+' : ''}${dd}%`}
+                </div>
+                <div className="pb-sup-tick-val">{fmtNumber(d.pkr)}</div>
+                <div className="pb-sup-tick-code">{DAY_LABEL(d.date)}</div>
+              </div>
+            );
+          }) : <div className="pb-sup-tick flat">No dated paid orders yet — nothing is fabricated to fill this strip.</div>}
+        </div>
+      </div>
+
+      {/* ---- delta KPI cards ---- */}
+      <div className="row g-3 mb-3">
+        <div className="col-12 col-lg-4">
+          <SupKpi title="Revenue" href="/admin/finance" value={dash(fmtMoney(gross))}
+            note="paid orders in PKR, counted once per source record"
+            rule={100} delta={deltaPct} deltaBasis={deltaBasis} />
+        </div>
+        <div className="col-12 col-lg-4">
+          <SupKpi title="Sells" value={fmtNumber(paidCount)}
+            note={`${fmtNumber(pendingCount)} order(s) still awaiting action`}
+            rule={orderTotal ? (paidCount / orderTotal) * 100 : 0}
+            delta={null} deltaBasis="no comparable window for order counts" />
+        </div>
+        <div className="col-12 col-lg-4">
+          <SupKpi title="Refunded" value={dash(fmtMoney(refunded))}
+            note={`${fmtNumber(f.refundedCount ?? 0)} refunded order(s)`}
+            rule={gross > 0 ? (refunded / gross) * 100 : 0}
+            delta={null} deltaBasis="refunds are read from the order record itself" />
+        </div>
+      </div>
+
+      {/* ---- breakdown lists + integration tasks ---- */}
+      <div className="row g-3 mb-3">
+        <div className="col-lg-7">
+          <Card title="Income by application" right={<span className="small">PKR paid</span>}>
+            {byApp.length ? byApp.map((a) => (
+              <SupRow key={a.app || a.label} name={appLabel(a.app) || asText(a.label)} color={APP_COLORS[a.app] || 'var(--pb-accent)'}
+                value={fmtMoney(a.pkr || 0)} pct={((a.pkr || 0) / maxApp) * 100}
+                note={`${pct(a.pkr || 0, gross)} of paid revenue`} />
+            )) : <div className="small" style={{ color: 'var(--bs-secondary-color)' }}>No paid revenue recorded by any application yet.</div>}
+          </Card>
+        </div>
+        <div className="col-lg-5">
+          <Card title="Integration tasks" right={<span className="small">{fmtNumber(connected)}/{fmtNumber(total)}</span>}>
+            <div className="d-flex justify-content-between align-items-end mb-1">
+              <span className="pb-sup-readiness">{readiness === null ? '—' : `${readiness}%`}</span>
+              <span className="small" style={{ color: 'var(--bs-secondary-color)' }}>readiness</span>
+            </div>
+            <div className="pb-sup-rule"><i style={{ width: `${readiness || 0}%` }} /></div>
+            <div className="d-flex flex-wrap gap-2 my-3">
+              <span className="badge text-bg-success">Completed {fmtNumber(connected)}</span>
+              <span className="badge text-bg-warning text-dark">Overdue {fmtNumber(pending.length)}</span>
+              <span className="badge text-bg-secondary">Total {fmtNumber(total)}</span>
+            </div>
+            {pending.length ? (
+              <ul className="list-unstyled mb-0 small">
+                {pending.slice(0, 4).map((p) => (
+                  <li className="d-flex justify-content-between border-bottom py-1" key={asText(p.slug || p.label)}>
+                    <span>{asText(p.label || p.slug)}</span>
+                    <span style={{ color: 'var(--bs-secondary-color)' }}>{asText(p.reason || 'credentials required')}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : <div className="small" style={{ color: 'var(--bs-secondary-color)' }}>Every application reports a healthy connection.</div>}
+          </Card>
+        </div>
+      </div>
+
+      {/* ---- performance strip + invoice ledger ---- */}
+      <div className="row g-3">
+        <div className="col-lg-4">
+          <Card title="Traffic, orders & revenue">
+            {[
+              { l: 'Paid orders', v: fmtNumber(paidCount), s: pct(paidCount, orderTotal || 1), c: 'var(--pb-accent)' },
+              { l: 'Net revenue', v: fmtMoney(net), s: pct(net, gross || 1), c: 'var(--pb-success)' },
+              { l: 'Refunded', v: fmtMoney(refunded), s: pct(refunded, gross || 1), c: 'var(--pb-danger)' },
+              { l: 'Open enquiries', v: fmtNumber(k.openEnquiries ?? 0), s: '—', c: 'var(--pb-warning)' },
+            ].map((m) => (
+              <div className="pb-sup-mini" key={m.l}>
+                <div>
+                  <div className="pb-sup-mini-label">{m.l}</div>
+                  <div className="pb-sup-mini-value">{dash(m.v)}</div>
+                </div>
+                <span className="pb-sup-mini-share" style={{ color: m.c }}>{m.s}</span>
+              </div>
+            ))}
+          </Card>
+        </div>
+        <div className="col-lg-8">
+          <Card title="Invoice / settlement ledger" right={<span className="small">{fmtNumber(settlements.length)} row(s)</span>}>
+            {settlements.length ? (
+              <div className="table-responsive">
+                <table className="table table-sm align-middle mb-0">
+                  <thead>
+                    <tr><th>Invoice</th><th>Source</th><th>Gateway</th><th className="text-end">Amount</th><th>Status</th></tr>
+                  </thead>
+                  <tbody>
+                    {settlements.slice(0, 7).map((s, i) => {
+                      const state = s.settlementState || 'not reported';
+                      return (
+                        <tr key={asText(s.reference || s.id || i)}>
+                          <td className="pb-mono small">#{asText(s.reference || s.id || '—')}</td>
+                          <td className="small">{appLabel(s.app)}</td>
+                          <td className="small">{asText(s.gateway || '—')}</td>
+                          <td className="text-end small fw-semibold">{fmtMoney(s.amount, s.currency)}</td>
+                          <td><span className={`badge text-bg-${pillTone(state)}`}>{state}</span></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : <div className="small" style={{ color: 'var(--bs-secondary-color)' }}>No settled payments reported by any source yet.</div>}
+            <div className="small mt-2" style={{ color: 'var(--bs-secondary-color)' }}>
+              Settlement state is taken from the order record; a source that reports nothing is labelled “not reported”, never assumed paid.
+            </div>
+          </Card>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export const SECTIONS = [
+  { id: 'superieur', label: 'Superieur', Component: SectionSuperieur, note: 'Hero banner with a live ticker strip, delta KPI cards, income-by-application list, integration-task readiness card, performance strip and an invoice ledger with status pills.' },
   { id: 'analytics', label: 'Analytics', Component: SectionAnalytics, note: 'Pastel metric banners, order overview, earnings, product/review/sales row.' },
   { id: 'currency', label: 'Currency & Exchange', Component: SectionCurrency, note: 'Currency cards, per-application revenue bars, settlement panel.' },
   { id: 'executive', label: 'Executive Horizontal', Component: SectionExecutive, note: 'Turnover/clients/availability hero, gauges, activity feed, review split.' },
