@@ -20,6 +20,23 @@ export default function ApplicationsHealth() {
 
   useEffect(() => { load(); }, [load]);
 
+  const [workers, setWorkers] = useState(null);
+  const [running, setRunning] = useState(false);
+
+  const loadWorkers = useCallback(async () => {
+    const res = await api('/api/admin/workers');
+    if (res?.workers) setWorkers(res.workers);
+  }, [api]);
+
+  useEffect(() => { loadWorkers(); }, [loadWorkers]);
+
+  const runWorkers = async () => {
+    setRunning(true);
+    await api('/api/admin/workers', { method: 'POST', body: { action: 'run' } });
+    await Promise.all([loadWorkers(), load()]);
+    setRunning(false);
+  };
+
   return (
     <>
       <PageHeader
@@ -60,6 +77,31 @@ export default function ApplicationsHealth() {
           );
         })}
       </div>
+      <Panel title="Sync workers" className="mt-3" pad={false}
+        actions={<button className="btn btn-sm btn-primary" disabled={running} onClick={runWorkers}>{running ? 'Running…' : 'Run workers now'}</button>}>
+        {!workers && <SkeletonRows rows={4} />}
+        {workers && (
+          <div className="table-responsive">
+            <table className="table table-sm mb-0 align-middle">
+              <thead>
+                <tr><th>Application</th><th>Schedule</th><th>State</th><th>Last run</th><th>Records</th><th>Detail</th></tr>
+              </thead>
+              <tbody>
+                {workers.map((w) => (
+                  <tr key={w.slug}>
+                    <td>{w.name}</td>
+                    <td className="pb-mono small">{w.schedule}</td>
+                    <td><StatusBadge status={!w.enabled ? 'disconnected' : w.lastStatus === 'ok' ? 'connected' : w.lastStatus === 'failed' ? 'degraded' : 'pending'} /></td>
+                    <td className="pb-mono small">{w.lastRunAt ? <RelativeTime iso={w.lastRunAt} /> : 'never'}</td>
+                    <td className="pb-mono small">{w.stored ?? '—'}</td>
+                    <td className="small" style={{ color: 'var(--bs-secondary-color)' }}>{asText(w.lastError || (w.lastStatus === 'skipped' ? 'not configured — skipped' : '—'))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
       <p className="small mt-3 mb-0" style={{ color: 'var(--pb-text-muted)' }}>
         Connector mode is <span className="pb-mono">{mode || '—'}</span>. Credentials are read server-side only; they never reach this browser.
       </p>

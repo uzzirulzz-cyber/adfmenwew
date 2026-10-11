@@ -81,7 +81,9 @@ export default function Settings() {
                   {g.vars.map((v) => (
                     <div key={v.name} className="d-flex justify-content-between small">
                       <span className="pb-mono" style={{ color: 'var(--bs-secondary-color)' }}>{v.name}</span>
-                      <span className={v.present ? 'text-success' : 'text-secondary'}>{v.present ? 'set' : 'missing'}</span>
+                      <span className={v.present ? 'text-success' : v.builtIn ? 'text-info' : 'text-secondary'}>
+                        {v.present ? 'set' : v.builtIn ? 'built-in' : 'missing'}
+                      </span>
                     </div>
                   ))}
                 </li>
