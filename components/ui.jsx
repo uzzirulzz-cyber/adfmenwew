@@ -9,6 +9,14 @@ export function fmtMoney(amount, currency = 'PKR') {
   return currency === 'PKR' ? `PKR ${n}` : `${currency} ${n}`;
 }
 
+// Numeric formatter used by the dashboard sections and stat tiles. Kept here so
+// every view formats counts identically; a non-finite value renders an em dash
+// rather than "NaN" (an unreported figure must never look like a real one).
+export function fmtNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n.toLocaleString('en-US') : '—';
+}
+
 export function fmtDateTime(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -277,4 +285,102 @@ export function asText(v) {
   if (v === null || v === undefined || v === '') return '—';
   if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') return String(v);
   try { return JSON.stringify(v); } catch { return String(v); }
+}
+
+/* ---------- Relative time ---------- */
+export function RelativeTime({ iso }) {
+  if (!iso) return <span title="">—</span>;
+  const then = new Date(iso).getTime();
+  if (!Number.isFinite(then)) return <span>—</span>;
+  const seconds = Math.round((Date.now() - then) / 1000);
+  const abs = Math.abs(seconds);
+  const label = abs < 45 ? 'just now'
+    : abs < 3600 ? `${Math.round(seconds / 60)}m ago`
+    : abs < 86400 ? `${Math.round(seconds / 3600)}h ago`
+    : `${Math.round(seconds / 86400)}d ago`;
+  return <span title={new Date(iso).toISOString()}>{label}</span>;
+}
+
+/* ---------- Loading skeletons ---------- */
+export function SkeletonRows({ rows = 5, cols = 5 }) {
+  return (
+    <div className="pb-skeleton" aria-hidden="true">
+      {Array.from({ length: rows }).map((_, r) => (
+        <div className="pb-skeleton-row" key={r}>
+          {Array.from({ length: cols }).map((__, c) => <span className="pb-skeleton-cell" key={c} />)}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function SkeletonCard({ height = 200 }) {
+  return <div className="pb-card pb-skeleton pb-skeleton-card" style={{ height }} aria-hidden="true" />;
+}
+
+/* ---------- Error state with retry ---------- */
+export function ErrorState({ title = 'Something went wrong', message, onRetry }) {
+  return (
+    <div className="pb-empty" role="alert">
+      <span className="ico">⚠</span>
+      <div style={{ color: 'var(--bs-emphasis-color)', fontWeight: 600 }}>{title}</div>
+      {message && <div className="mt-1" style={{ fontSize: '.88rem' }}>{asText(message)}</div>}
+      {onRetry && <button type="button" className="btn btn-sm btn-outline-primary mt-3" onClick={onRetry}>Try again</button>}
+    </div>
+  );
+}
+
+/* ---------- Export helpers (client-side only) ---------- */
+function cellValue(row, column) {
+  if (!column) return '';
+  if (typeof column.value === 'function') {
+    try { const v = column.value(row); return v === null || v === undefined ? '' : v; } catch { return ''; }
+  }
+  const v = row ? row[column.key] : '';
+  return v === null || v === undefined ? '' : v;
+}
+
+export function toCSV(columns = [], rows = []) {
+  const esc = (v) => JSON.stringify(v === null || v === undefined ? '' : String(v));
+  const head = columns.map((c) => esc(c.label ?? c.key)).join(',');
+  const body = rows.map((r) => columns.map((c) => esc(cellValue(r, c))).join(',')).join('\r\n');
+  return body ? `${head}\r\n${body}` : head;
+}
+
+export function toExcelHTML(columns = [], rows = [], title = 'export') {
+  const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  const head = columns.map((c) => `<th>${esc(c.label ?? c.key)}</th>`).join('');
+  const body = rows.map((r) => `<tr>${columns.map((c) => `<td>${esc(cellValue(r, c))}</td>`).join('')}</tr>`).join('');
+  return `<html><head><meta charset="utf-8" /><title>${esc(title)}</title></head><body><table border="1"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></body></html>`;
+}
+
+export function downloadFile(filename, content, mime = 'text/plain;charset=utf-8') {
+  if (typeof document === 'undefined') return;
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+export function ExportButtons({ filename = 'export', columns = [], rows = [], label = 'Export' }) {
+  return (
+    <div className="btn-group btn-group-sm">
+      <button type="button" className="btn btn-outline-secondary"
+        onClick={() => downloadFile(`${filename}.csv`, toCSV(columns, rows), 'text/csv;charset=utf-8')}>⭳ {label} CSV</button>
+      <button type="button" className="btn btn-outline-secondary"
+        onClick={() => downloadFile(`${filename}.xls`, toExcelHTML(columns, rows, filename), 'application/vnd.ms-excel')}>⭳ {label} Excel</button>
+    </div>
+  );
+}
+
+/* ---------- Debounce hook ---------- */
+export function useDebounced(value, delay = 250) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
 }

@@ -7,54 +7,18 @@ import { APPS, APP_COLORS } from '../lib/apps';
 import { NOTIFICATIONS, CUSTOMERS, ORDERS, LEADS } from '../lib/data';
 import { useSession } from './SessionProvider';
 import { applyTheme, DEFAULT_THEME } from '../lib/theme';
+import { NAV_SECTIONS as MODULE_NAV } from '../lib/modules';
 
+// Sidebar navigation comes from the module registry (lib/modules.js) — the
+// single source of truth — so every page that exists is reachable from the
+// shell instead of a hand-maintained subset. The per-application detail links
+// are appended here because they are generated from the App Registry.
 const NAV_SECTIONS = [
+  ...MODULE_NAV,
   {
-    label: 'Platform & Ops',
+    label: 'Connected applications',
     items: [
-      { href: '/admin/dashboards', label: 'Dashboards & Themes', icon: 'bi-columns-gap', perm: 'dashboard:view' },
-      { href: '/admin/integration-health', label: 'Integration Health', icon: 'bi-key', perm: 'apps:manage' },
-      { href: '/admin/system-health', label: 'System Health', icon: 'bi-activity', perm: 'dashboard:view' },
-      { href: '/admin/applications', label: 'App Registry & Connections', icon: 'bi-plug', perm: 'apps:manage' },
-      { href: '/admin/mobile', label: 'Mobile & Android Admin', icon: 'bi-phone', perm: 'mobile:manage' },
-      { href: '/admin/backups', label: 'Restore Points', icon: 'bi-arrow-counterclockwise', perm: 'ops:manage' },
-      { href: '/admin/audit-log', label: 'Audit Log', icon: 'bi-journal-text', perm: 'audit:view' },
-      { href: '/admin/tracking', label: 'Tracking & Measurement', icon: 'bi-graph-up-arrow', perm: 'tracking:write' },
-      { href: '/admin/seo-audit', label: 'SEO Audit Runs', icon: 'bi-radar', perm: 'seo:write' },
-      { href: '/admin/growth', label: 'Growth Placements', icon: 'bi-megaphone', perm: 'growth:write' },
-      { href: '/admin/profile', label: 'Profile & Account', icon: 'bi-person-badge', perm: 'dashboard:view' },
-    ],
-  },
-  {
-    label: 'Overview',
-    items: [{ href: '/admin', icon: '▦', label: 'Dashboard' }],
-  },
-  {
-    label: 'Applications',
-    items: [
-      ...APPS.map((a) => ({
-        href: `/admin/apps/${a.slug}`,
-        icon: '●',
-        label: a.name,
-        slug: a.slug,
-      })),
-      { href: '/admin/apps', icon: '✚', label: 'App Registry' },
-    ],
-  },
-  {
-    label: 'Business',
-    items: [
-      { href: '/admin/products', icon: '◈', label: 'Products & Licenses' },
-      { href: '/admin/orders', icon: '⇄', label: 'Orders & Payments' },
-      { href: '/admin/customers', icon: '☰', label: 'Customers & CRM' },
-      { href: '/admin/page-builder', icon: '▤', label: 'Website Page Builder' },
-      { href: '/admin/theme-studio', icon: '✦', label: 'Theme Studio' },
-      { href: '/admin/reports', icon: '◷', label: 'Finance & Analytics' },
-      { href: '/admin/live', icon: '▶', label: 'Live TV & Playlists' },
-      { href: '/admin/sports', icon: '◉', label: 'Sports & Broadcast' },
-      { href: '/admin/deals', icon: '◇', label: 'Deals & Listings' },
-      { href: '/admin/settings', icon: '▣', label: 'Integrations & System Settings' },
-      { href: '/admin/staff', icon: '⚷', label: 'Security, Staff & Audit' },
+      ...APPS.map((a) => ({ href: `/admin/apps/${a.slug}`, icon: 'bi-circle-fill', label: a.name, slug: a.slug })),
     ],
   },
 ];
@@ -97,7 +61,7 @@ function SidebarNav({ liveStatuses, onNavigate, layout, collapsed = false }) {
             return (
               <Link key={item.href} href={item.href} onClick={onNavigate}
                 className={`pb-navlink ${active ? 'active' : ''}`} title={collapsed ? item.label : undefined} aria-label={collapsed ? item.label : undefined}>
-                <span className="pb-ico" aria-hidden="true">{item.icon}</span>
+                <span className="pb-ico" aria-hidden="true"><i className={`bi ${item.icon}`} /></span>
                 <span className="text-truncate">{item.label}</span>
                 {item.slug && <span className={`pb-appdot ${dot}`} title={`Status: ${dot}`} />}
               </Link>

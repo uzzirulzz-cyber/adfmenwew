@@ -617,3 +617,23 @@ a {
 [data-pb-layout="breeze-dark"], [data-pb-layout="breeze-horizontal-dark"] { --bs-body-bg:#101423; --bs-body-color:#e9ecf7;
   --bs-border-color:#222a41; --pb-surface:#171c2e; --pb-line:#222a41; --pb-accent:#5a67d8; }
 [data-pb-layout="tresto-analytics"] .pb-dash-metric, [data-pb-layout="breeze-light"] .pb-dash-metric { color:#101828; }
+
+/* ---- premium section skins (Stellar / Star Admin Pro) ----
+   Each skin re-points Bootstrap tokens on <html> for the page canvas, and the
+   .pb-dash scope for the cards, so every existing component follows it. */
+[data-pb-layout="stellar-light"] { --bs-body-bg:#f4f5fb; --bs-body-color:#1f2333; --bs-border-color:#e7e8f2; --pb-accent:#6366f1; --bs-primary:#6366f1; }
+[data-pb-layout="stellar-light"] .pb-dash { --pb-surface:#ffffff; --pb-surface-2:#f7f8fd; --pb-line:#e7e8f2; }
+[data-pb-layout="stellar-dark"] { --bs-body-bg:#0e0f1c; --bs-body-color:#e6e7f5; --bs-border-color:#24263c; --pb-accent:#8b5cf6; }
+[data-pb-layout="stellar-dark"] .pb-dash { --pb-surface:#16182a; --pb-surface-2:#101120; --pb-line:#24263c; }
+[data-pb-layout="starpro-light"] { --bs-body-bg:#f2f6fc; --bs-body-color:#12233d; --bs-border-color:#dee7f2; --pb-accent:#1e6fe8; --bs-primary:#1e6fe8; }
+[data-pb-layout="starpro-light"] .pb-dash { --pb-surface:#ffffff; --pb-surface-2:#f5f9fe; --pb-line:#dee7f2; }
+[data-pb-layout="starpro-dark"] { --bs-body-bg:#0a1526; --bs-body-color:#eaf2ff; --bs-border-color:#1c3350; --pb-accent:#2e8bff; }
+[data-pb-layout="starpro-dark"] .pb-dash { --pb-surface:#10203a; --pb-surface-2:#0e1c31; --pb-line:#1c3350; }
+
+/* ---- Loading skeletons ---- */
+.pb-skeleton { padding: 4px 0; }
+.pb-skeleton-row { display: flex; gap: 10px; padding: 9px 4px; }
+.pb-skeleton-cell { flex: 1; height: 12px; border-radius: 6px; background: linear-gradient(90deg, var(--pb-hover, rgba(127,145,170,.18)) 25%, rgba(127,145,170,.08) 37%, var(--pb-hover, rgba(127,145,170,.18)) 63%); background-size: 400% 100%; animation: pb-shimmer 1.4s ease infinite; }
+.pb-skeleton-card { background: linear-gradient(90deg, var(--pb-hover, rgba(127,145,170,.18)) 25%, rgba(127,145,170,.08) 37%, var(--pb-hover, rgba(127,145,170,.18)) 63%); background-size: 400% 100%; animation: pb-shimmer 1.4s ease infinite; }
+@keyframes pb-shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+@media (prefers-reduced-motion: reduce) { .pb-skeleton-cell, .pb-skeleton-card { animation: none; } }

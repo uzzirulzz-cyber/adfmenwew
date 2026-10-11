@@ -8,7 +8,7 @@ import { LAYOUTS, LAYOUT_IDS, DEFAULT_LAYOUT_ID } from '../../../../lib/theme/la
 import { guard, json, bodyOf } from '../../../../lib/adminRoute';
 
 const KEY = 'admin.dashboards';
-const SECTIONS = ['analytics', 'currency', 'executive', 'breeze'];
+const SECTIONS = ['analytics', 'currency', 'executive', 'breeze', 'stellar', 'starpro'];
 async function state() { return (await getConfig(KEY)) || { section: 'analytics', layout: DEFAULT_LAYOUT_ID }; }
 
 export async function GET(req) {

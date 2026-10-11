@@ -4,7 +4,11 @@
 // Bootstrap 5 markup. No template CSS/JS/imagery is used. Every number comes from the
 // existing endpoints (/api/admin/overview, /analytics, /finance, /records/*); when a
 // source is unconfigured the value renders as an em dash with the reason — never 0-as-fake-data.
+import { useState } from 'react';
+import { APPS, APP_COLORS } from '../lib/apps';
 import { fmtMoney, fmtNumber, asText, DataTable } from './ui';
+
+const appLabel = (slug) => (APPS.find((a) => a.slug === slug) || {}).short || String(slug || '—');
 
 const dash = (v, note) => (v === null || v === undefined || v === '' ? <span title={note || 'no data from the source'} style={{ opacity: .55 }}>—</span> : v);
 const pct = (a, b) => (b > 0 ? `${Math.round((a / b) * 100)}%` : '—');
@@ -256,9 +260,243 @@ export function SectionBreeze({ overview, analytics }) {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Premium sections — layout patterns adapted from two premium admin    */
+/* dashboard families (Stellar; Star Admin Pro). No third-party CSS,    */
+/* JS or imagery is used: every block is this admin's own Bootstrap 5   */
+/* markup, and every number is read from the existing endpoints. A      */
+/* source that reports nothing renders an em dash with the reason.      */
+/* ------------------------------------------------------------------ */
+
+function Tabs({ items, value, onChange }) {
+  return (
+    <div className="pb-hbar" style={{ borderBottom: 0, marginBottom: 0 }}>
+      {items.map((it) => (
+        <a key={it.id} href="#range" className={it.id === value ? 'active' : ''}
+          onClick={(e) => { e.preventDefault(); onChange(it.id); }}>{it.label}</a>
+      ))}
+    </div>
+  );
+}
+
+export function SectionStellar({ overview, analytics, finance }) {
+  const k = (overview && overview.kpis) || {};
+  const f = (finance && finance.headline) || {};
+  const byDay = (finance && finance.byDay) || [];
+  const byGateway = (finance && finance.byGateway) || [];
+  const channels = (analytics && analytics.commerce && analytics.commerce.byApplication) || [];
+  const settlements = (finance && finance.settlements) || [];
+  const health = (overview && overview.health) || {};
+  const totals = (finance && finance.totals) || {};
+  const series = byDay.map((d) => d.pkr);
+  const maxGw = Math.max(1, ...byGateway.map((g) => g.pkr || 0));
+  const other = Object.entries(totals).filter(([c]) => c !== 'PKR').map(([code, v]) => ({ code, net: v.net }));
+  return (
+    <>
+      <div className="row g-3 mb-3">
+        <div className="col-6 col-xl-3"><Card title="Activations" right={<span className="small">paid</span>}>
+          <div className="fs-3 fw-bold">{dash(fmtNumber(f.paidCount ?? k.paidOrders ?? 0))}</div>
+          <div className="small" style={{ color: 'var(--bs-secondary-color)' }}>paid orders, counted once per source record</div></Card></div>
+        <div className="col-6 col-xl-3"><Card title="Net revenue">
+          <div className="fs-3 fw-bold">{dash(fmtMoney(f.netPkr ?? 0))}</div>
+          <div className="small" style={{ color: 'var(--bs-secondary-color)' }}>paid {fmtMoney(f.paidPkr ?? 0)} · refunded {fmtMoney(f.refundedPkr ?? 0)}</div></Card></div>
+        <div className="col-6 col-xl-3"><Card title="Live viewers">
+          <div className="fs-3 fw-bold">{dash(fmtNumber(k.liveViewers ?? 0))}</div>
+          <div className="small" style={{ color: 'var(--bs-secondary-color)' }}>{fmtNumber(k.liveChannels ?? 0)} channels broadcasting</div></Card></div>
+        <div className="col-6 col-xl-3"><Card title="Clients">
+          <div className="fs-3 fw-bold">{dash(fmtNumber(k.customers ?? 0))}</div>
+          <div className="small" style={{ color: 'var(--bs-secondary-color)' }}>linked by verified identifier only</div></Card></div>
+      </div>
+
+      <div className="row g-3 mb-3">
+        <div className="col-lg-8"><Card title="Performance indicator" right={<span className="small">PKR paid by day</span>}>
+          {series.length ? <Spark values={series} /> : <div className="small" style={{ color: 'var(--bs-secondary-color)' }}>No dated paid orders in the window — no bars are fabricated.</div>}
+          <div className="small mt-2" style={{ color: 'var(--bs-secondary-color)' }}>From /api/admin/finance byDay. Other currencies are excluded from this PKR series.</div></Card></div>
+        <div className="col-lg-4"><Card title="Orders by channel">
+          {channels.length ? channels.slice(0, 6).map((c) => (
+            <div className="d-flex align-items-center gap-2 mb-2" key={c.label}>
+              <span className="small text-truncate" style={{ width: 92 }}>{appLabel(c.label)}</span>
+              <div className="progress flex-grow-1" style={{ height: 8 }}><div className="progress-bar" style={{ width: `${Math.min(100, (c.count / Math.max(1, channels[0].count)) * 100)}%` }} /></div>
+              <span className="small">{fmtNumber(c.count)}</span>
+            </div>
+          )) : <div className="small" style={{ color: 'var(--bs-secondary-color)' }}>No order-channel data from any source yet.</div>}
+          <div className="small mt-2" style={{ color: 'var(--bs-secondary-color)' }}>Orders by source application. Web-session channels need a traffic provider, which is not wired.</div></Card></div>
+      </div>
+
+      <div className="row g-3 mb-3">
+        <div className="col-lg-7"><Card title="Recent settlements">
+          {settlements.length ? (
+            <DataTable
+              columns={[
+                { key: 'reference', label: 'Reference' },
+                { key: 'app', label: 'Source', render: (r) => appLabel(r.app) },
+                { key: 'gateway', label: 'Gateway' },
+                { key: 'amount', label: 'Amount', render: (r) => fmtMoney(r.amount, r.currency) },
+                { key: 'state', label: 'Settlement', render: (r) => r.state },
+              ]}
+              rows={settlements.slice(0, 8).map((s) => ({ ...s, state: s.settlementState || 'not reported' }))}
+            />
+          ) : <div className="small" style={{ color: 'var(--bs-secondary-color)' }}>No settled payments reported by any source yet.</div>}
+        </Card></div>
+        <div className="col-lg-5"><Card title="Sales performance by gateway">
+          {byGateway.length ? byGateway.map((g) => (
+            <div className="d-flex align-items-center gap-2 mb-2" key={g.gateway}>
+              <span className="small text-truncate" style={{ width: 100 }}>{g.gateway}</span>
+              <div className="progress flex-grow-1" style={{ height: 8 }}><div className="progress-bar" style={{ width: `${Math.min(100, (g.pkr / maxGw) * 100)}%` }} /></div>
+              <span className="small">{fmtMoney(g.pkr)}</span>
+            </div>
+          )) : <div className="small" style={{ color: 'var(--bs-secondary-color)' }}>No gateway is reported on any paid order yet.</div>}
+          <div className="small mt-2" style={{ color: 'var(--bs-secondary-color)' }}>Gateway figures come from the order record itself, never estimated.</div></Card></div>
+      </div>
+
+      <div className="row g-3">
+        <div className="col-lg-6"><Card title="Income and expenses">
+          <ul className="list-unstyled mb-0 small">
+            <li className="d-flex justify-content-between border-bottom py-1"><span>Paid (PKR)</span><span className="fw-semibold">{fmtMoney(f.paidPkr ?? 0)}</span></li>
+            <li className="d-flex justify-content-between border-bottom py-1"><span>Refunded (PKR)</span><span className="fw-semibold">{fmtMoney(f.refundedPkr ?? 0)}</span></li>
+            <li className="d-flex justify-content-between border-bottom py-1"><span>Net (PKR)</span><span className="fw-semibold">{fmtMoney(f.netPkr ?? 0)}</span></li>
+            <li className="d-flex justify-content-between py-1"><span>Other currencies</span><span className="fw-semibold">{other.length ? other.map((o) => `${o.code} ${fmtNumber(o.net)}`).join(' · ') : '—'}</span></li>
+          </ul>
+          <div className="small mt-2" style={{ color: 'var(--bs-secondary-color)' }}>Non-PKR amounts are reported in their own currency and never folded into PKR.</div>
+        </Card></div>
+        <div className="col-lg-6"><Card title="Quick status">
+          <div className="d-flex flex-wrap gap-2 small">
+            <span className="badge text-bg-secondary">Connected {fmtNumber(health.connected ?? 0)}/{fmtNumber(health.total ?? 0)}</span>
+            <span className="badge text-bg-secondary">Pending {fmtNumber((health.unconfigured || []).length)}</span>
+            <span className="badge text-bg-secondary">Degraded {fmtNumber((health.degraded || []).length)}</span>
+            <span className="badge text-bg-secondary">Order records {fmtNumber((overview && overview.recordTotals && overview.recordTotals.orders) ?? 0)}</span>
+          </div>
+          <div className="mt-3"><a className="btn btn-outline-primary btn-sm" href="/admin/integration-health">Open integration health</a></div>
+        </Card></div>
+      </div>
+    </>
+  );
+}
+
+const STAR_RANGES = [
+  { id: '1d', label: '1D', days: 1 },
+  { id: '5d', label: '5D', days: 5 },
+  { id: '1m', label: '1M', days: 30 },
+  { id: '1y', label: '1Y', days: 365 },
+];
+
+export function SectionStarPro({ overview, analytics, finance }) {
+  const [range, setRange] = useState('1m');
+  const k = (overview && overview.kpis) || {};
+  const f = (finance && finance.headline) || {};
+  const byDay = (finance && finance.byDay) || [];
+  const byApp = (overview && overview.byApp) || [];
+  const activity = (overview && overview.activity) || [];
+  const topProducts = (analytics && analytics.catalog && analytics.catalog.topByLicences) || [];
+  const unavailable = (analytics && analytics.unavailable) || [];
+  const settlements = (finance && finance.settlements) || [];
+  const days = (STAR_RANGES.find((r) => r.id === range) || STAR_RANGES[2]).days;
+  const cutoff = Date.now() - days * 86400000;
+  const win = byDay.filter((d) => { const t = new Date(d.date).getTime(); return Number.isFinite(t) ? t >= cutoff : true; });
+  const series = (win.length ? win : byDay).map((d) => d.pkr);
+  const gross = f.paidPkr ?? 0, refunded = f.refundedPkr ?? 0, net = f.netPkr ?? 0;
+  const margin = gross > 0 ? Math.round((net / gross) * 100) : null;
+  const aov = analytics && analytics.commerce ? analytics.commerce.averageOrderValuePkr : null;
+  const maxApp = Math.max(1, ...byApp.map((x) => x.pkr || 0));
+  const tiles = [
+    { label: 'Paid orders', value: fmtNumber(f.paidCount ?? k.paidOrders ?? 0), note: 'counted once per source record' },
+    { label: 'Net revenue', value: fmtMoney(net), note: `paid ${fmtMoney(gross)}` },
+    { label: 'Avg order value', value: aov === null || aov === undefined ? '—' : fmtMoney(aov), note: 'PKR paid orders only' },
+    { label: 'Refunded', value: fmtNumber(f.refundedCount ?? 0), note: `${fmtMoney(refunded)} refunded` },
+  ];
+  return (
+    <>
+      <div className="row row-cols-2 row-cols-xl-4 g-3 mb-3">
+        {tiles.map((t) => (
+          <div className="col" key={t.label}><Card title={t.label}>
+            <div className="fs-3 fw-bold">{t.value}</div>
+            <div className="small" style={{ color: 'var(--bs-secondary-color)' }}>{t.note}</div></Card></div>
+        ))}
+      </div>
+
+      <div className="row g-3 mb-3">
+        <div className="col-lg-8"><Card title="Sales statistics" right={<Tabs items={STAR_RANGES} value={range} onChange={setRange} />}>
+          {series.length ? <Spark values={series} /> : <div className="small" style={{ color: 'var(--bs-secondary-color)' }}>No dated paid orders in this range.</div>}
+          <div className="small mt-2" style={{ color: 'var(--bs-secondary-color)' }}>Range {range.toUpperCase()} · {win.length} day(s) with paid revenue · PKR only.</div></Card></div>
+        <div className="col-lg-4"><Card title="Net profit margin">
+          <Gauge label={margin === null ? 'no paid revenue in window' : `${fmtMoney(gross)} gross · ${fmtMoney(refunded)} refunded`} value={margin === null ? '—' : `${margin}%`} pct={margin} />
+        </Card></div>
+      </div>
+
+      <div className="row g-3 mb-3">
+        <div className="col-lg-5"><Card title="Total cost vs total revenue">
+          <div className="d-flex justify-content-between small mb-1"><span>Revenue (paid)</span><span className="fw-semibold">{fmtMoney(gross)}</span></div>
+          <div className="progress mb-3" style={{ height: 10 }}><div className="progress-bar" style={{ width: '100%', background: 'var(--pb-accent)' }} /></div>
+          <div className="d-flex justify-content-between small mb-1"><span>Cost (refunded)</span><span className="fw-semibold">{fmtMoney(refunded)}</span></div>
+          <div className="progress" style={{ height: 10 }}><div className="progress-bar" style={{ width: `${gross > 0 ? Math.min(100, (refunded / gross) * 100) : 0}%`, background: 'var(--pb-danger)' }} /></div>
+          <div className="small mt-2" style={{ color: 'var(--bs-secondary-color)' }}>Gateway payout fees are not reported by any source and are therefore not estimated.</div>
+        </Card></div>
+        <div className="col-lg-7"><Card title="Invoice / settlement ledger">
+          {settlements.length ? (
+            <DataTable
+              columns={[
+                { key: 'reference', label: 'Reference' },
+                { key: 'app', label: 'Source', render: (r) => appLabel(r.app) },
+                { key: 'status', label: 'Status' },
+                { key: 'date', label: 'Settled' },
+                { key: 'amount', label: 'Amount', render: (r) => fmtMoney(r.amount, r.currency) },
+              ]}
+              rows={settlements.slice(0, 6).map((s) => ({ ...s, status: s.settlementState || 'not reported', date: s.settledAt ? String(s.settledAt).slice(0, 10) : '—' }))}
+            />
+          ) : <div className="small" style={{ color: 'var(--bs-secondary-color)' }}>No settlement rows from any source yet.</div>}
+        </Card></div>
+      </div>
+
+      <div className="row g-3 mb-3">
+        <div className="col-lg-7"><Card title="World sellings · revenue by application">
+          {byApp.length ? byApp.map((a) => (
+            <div className="d-flex align-items-center gap-2 mb-2" key={a.app}>
+              <span className="small" style={{ width: 90 }}>{appLabel(a.app)}</span>
+              <div className="progress flex-grow-1" style={{ height: 10 }}><div className="progress-bar" style={{ width: `${Math.min(100, ((a.pkr || 0) / maxApp) * 100)}%`, background: APP_COLORS[a.app] || 'var(--pb-accent)' }} /></div>
+              <span className="small">{fmtMoney(a.pkr || 0)}</span>
+            </div>
+          )) : <div className="small" style={{ color: 'var(--bs-secondary-color)' }}>No paid revenue recorded by any application.</div>}
+        </Card></div>
+        <div className="col-lg-5"><Card title="Website audience metrics">
+          {unavailable.length ? unavailable.map((u, i) => (
+            <div className="small mb-2" key={i}><strong>{asText(u.metric)}</strong><div style={{ color: 'var(--bs-secondary-color)' }}>{asText(u.reason)}</div></div>
+          )) : <div className="small" style={{ color: 'var(--bs-secondary-color)' }}>Not reported.</div>}
+        </Card></div>
+      </div>
+
+      <div className="row g-3">
+        <div className="col-lg-7"><Card title="Recent events">
+          {activity.length ? (
+            <ul className="list-unstyled mb-0">
+              {activity.slice(0, 6).map((a, i) => (
+                <li key={i} className="d-flex gap-2 border-bottom py-2">
+                  <span className={a.result === 'success' ? 'text-success' : 'text-warning'}>{a.result === 'success' ? '●' : '▲'}</span>
+                  <div><div className="small">{asText(a.action)} <span style={{ color: 'var(--bs-secondary-color)' }}>{asText(a.actor)}</span></div><small style={{ color: 'var(--bs-secondary-color)' }}>{asText(a.time || a.at || '')}</small></div>
+                </li>
+              ))}
+            </ul>
+          ) : <div className="small" style={{ color: 'var(--bs-secondary-color)' }}>No audit events recorded yet.</div>}
+        </Card></div>
+        <div className="col-lg-5"><Card title="Watchlist · top products by licences">
+          {topProducts.length ? (
+            <ul className="list-unstyled mb-0 small">
+              {topProducts.slice(0, 5).map((p) => (
+                <li className="d-flex justify-content-between border-bottom py-1" key={p.name}><span className="text-truncate" style={{ maxWidth: 200 }}>{asText(p.name)}</span><span className="fw-semibold">{fmtNumber(p.licenses)}</span></li>
+              ))}
+            </ul>
+          ) : <div className="small" style={{ color: 'var(--bs-secondary-color)' }}>No catalogue licence data yet.</div>}
+          <div className="small mt-2" style={{ color: 'var(--bs-secondary-color)' }}>Ranked by licences issued from /api/admin/analytics.</div>
+        </Card></div>
+      </div>
+    </>
+  );
+}
+
 export const SECTIONS = [
   { id: 'analytics', label: 'Analytics', Component: SectionAnalytics, note: 'Pastel metric banners, order overview, earnings, product/review/sales row.' },
   { id: 'currency', label: 'Currency & Exchange', Component: SectionCurrency, note: 'Currency cards, per-application revenue bars, settlement panel.' },
   { id: 'executive', label: 'Executive Horizontal', Component: SectionExecutive, note: 'Turnover/clients/availability hero, gauges, activity feed, review split.' },
   { id: 'breeze', label: 'Breeze', Component: SectionBreeze, note: 'KPI tiles, profit chart, status donut, info cards.' },
+  { id: 'stellar', label: 'Stellar', Component: SectionStellar, note: 'Performance tiles, performance-indicator bars, orders-by-channel, settlement ledger, gateway sales, income/expenses, quick status.' },
+  { id: 'starpro', label: 'Star Pro', Component: SectionStarPro, note: 'Sales tiles, range-tabbed sales chart, profit-margin gauge, cost vs revenue, invoice ledger, world sellings, events timeline, watchlist.' },
 ];
