@@ -23,7 +23,7 @@ export function AppControls({ slug, initial, onChange }) {
     setBusy(null);
 
     if (!res.ok) {
-      setNotice({ tone: 'danger', text: res.error || res.reason || 'Request failed.' });
+      setNotice({ tone: 'danger', text: asText(res.error || res.reason || 'Request failed.') });
     } else if (action === 'sync') {
       const s = res.summary
         ? Object.entries(res.summary).map(([k, v]) => `${k}: +${v.inserted}/${v.updated} upd`).join(' · ')
@@ -32,7 +32,7 @@ export function AppControls({ slug, initial, onChange }) {
     } else if (action === 'test') {
       setNotice({
         tone: res.ok ? 'success' : 'warning',
-        text: res.ok ? `Health check passed${res.detail ? ` (${res.detail})` : ''}.` : (res.reason || 'Health check failed.'),
+        text: res.ok ? `Health check passed${res.detail ? ` (${asText(res.detail)})` : ''}.` : asText(res.reason || 'Health check failed.'),
       });
     }
 

@@ -32,7 +32,10 @@ export default function ApplicationsHealth() {
       {!rows && <Panel><SkeletonRows rows={5} /></Panel>}
       <div className="row g-3">
         {(rows || []).map(({ app, res }) => {
-          const missing = res?.missingVars || [];
+          // /api/connectors/[app] nests the live status under `status`; normalise
+          // it once so every field below reads from the same object.
+          const st = res?.status || {};
+          const missing = st.missingVars || [];
           return (
             <div className="col-12 col-xl-6" key={app.slug}>
               <Panel pad>
@@ -42,7 +45,7 @@ export default function ApplicationsHealth() {
                     <div style={{ fontWeight: 700 }}>{app.name}</div>
                     <div className="small" style={{ color: 'var(--pb-text-muted)' }}>{app.domain} · {app.connector}</div>
                   </div>
-                  <StatusBadge status={res?.status || 'pending'} />
+                  <StatusBadge status={st.status || 'pending'} />
                 </div>
                 <div className="d-flex justify-content-between small mb-1"><span>Last successful sync</span><span className="pb-mono">{res?.syncState?.lastSyncAt ? <RelativeTime iso={res.syncState.lastSyncAt} /> : 'never'}</span></div>
                 <div className="d-flex justify-content-between small mb-1"><span>Records stored</span><span className="pb-mono">{res?.syncState?.stored ?? '—'}</span></div>
@@ -50,8 +53,8 @@ export default function ApplicationsHealth() {
                 <div className="d-flex justify-content-between small mb-2"><span>Checked</span><span className="pb-mono">{res?.checkedAt ? fmtDateTime(res.checkedAt) : 'on request'}</span></div>
                 {missing.length > 0 && <div className="alert alert-secondary small mb-2">Missing server-side configuration: <span className="pb-mono">{missing.join(', ')}</span></div>}
                 {res?.error && <div className="alert alert-warning small mb-2">{asText(res.error)}</div>}
-                {res?.reason && !res?.error && <div className="small mb-2" style={{ color: 'var(--bs-secondary-color)' }}>{asText(res.reason)}</div>}
-                <AppControls slug={app.slug} initial={res} onChange={load} />
+                {st.reason && !res?.error && <div className="small mb-2" style={{ color: 'var(--bs-secondary-color)' }}>{asText(st.reason)}</div>}
+                <AppControls slug={app.slug} initial={st} onChange={load} />
               </Panel>
             </div>
           );
