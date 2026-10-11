@@ -737,8 +737,183 @@ export function SectionSuperieur({ overview, finance }) {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Premium section — the "ProUI" pattern: a dark welcome banner with    */
+/* inline KPI stats, flat widgets carrying a coloured top border and a  */
+/* round icon badge, two inline mini-chart cards, then a two-panel row  */
+/* of a settlement ledger and a source-status list.                     */
+/* Pattern only — this admin's own Bootstrap 5 markup; no third-party   */
+/* CSS, JS or imagery, and every figure comes from the existing         */
+/* endpoints. A source that reports nothing renders an em dash.         */
+/* ------------------------------------------------------------------ */
+
+const PROUI_TONES = ['#F0AD4E', '#5CB85C', '#D9534F', '#9B7BE8'];
+
+function ProuiWidget({ label, value, note, tone, icon }) {
+  return (
+    <div className="pb-proui-widget h-100" style={{ '--pb-w-top': tone || 'var(--pb-accent)' }}>
+      <span className="pb-proui-badge" style={{ background: tone || 'var(--pb-accent)' }} aria-hidden="true">{icon}</span>
+      <div className="pb-proui-widget-body">
+        <div className="pb-proui-widget-label">{label}</div>
+        <div className="pb-proui-widget-sub">{value}</div>
+        {note && <div className="pb-proui-widget-note">{note}</div>}
+      </div>
+    </div>
+  );
+}
+
+export function SectionProUI({ overview, finance }) {
+  const k = (overview && overview.kpis) || {};
+  const f = (finance && finance.headline) || {};
+  const byDay = ((finance && finance.byDay) || []).map((d) => ({ date: d.date, pkr: Number(d.pkr) || 0 }));
+  const byGateway = (finance && finance.byGateway) || [];
+  const byApp = (overview && overview.byApp) || [];
+  const health = (overview && overview.health) || {};
+  const settlements = (finance && finance.settlements) || [];
+  const activity = (overview && overview.activity) || [];
+
+  const gross = f.paidPkr ?? k.revenuePkr ?? 0;
+  const refunded = f.refundedPkr ?? 0;
+  const net = f.netPkr ?? 0;
+  const paidCount = f.paidCount ?? k.paidOrders ?? 0;
+  const connected = health.connected ?? 0, total = health.total ?? 0;
+  const maxGw = Math.max(1, ...byGateway.map((g) => g.pkr || 0));
+  const maxApp = Math.max(1, ...byApp.map((a) => a.pkr || 0));
+  const pending = health.unconfigured || [];
+  const degraded = health.degraded || [];
+  const series = byDay.map((d) => d.pkr);
+
+  return (
+    <>
+      {/* ---- welcome banner with inline stats ---- */}
+      <div className="pb-proui-hero mb-3">
+        <div className="pb-proui-hero-copy">
+          <div className="pb-proui-hero-title">Welcome back, <strong>Admin</strong></div>
+          <div className="pb-proui-hero-sub">Everything the five applications report, in one place.</div>
+        </div>
+        <div className="pb-proui-hero-stats">
+          {[
+            { v: dash(fmtMoney(net)), l: 'Net revenue' },
+            { v: fmtNumber(paidCount), l: 'Paid orders' },
+            { v: dash(fmtNumber(k.liveChannels ?? 0)), l: 'Live channels' },
+            { v: `${fmtNumber(connected)}/${fmtNumber(total)}`, l: 'Connected' },
+          ].map((s) => (
+            <div className="pb-proui-stat" key={s.l}>
+              <div className="pb-proui-stat-v">{s.v}</div>
+              <div className="pb-proui-stat-l">{s.l}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ---- flat widgets with a coloured top border ---- */}
+      <div className="row row-cols-1 row-cols-sm-2 row-cols-xl-4 g-3 mb-3">
+        {[
+          { label: 'Revenue', value: dash(fmtMoney(gross)), note: 'paid orders in PKR', tone: PROUI_TONES[0], icon: '▤' },
+          { label: 'Paid orders', value: fmtNumber(paidCount), note: 'counted once per source record', tone: PROUI_TONES[1], icon: '$' },
+          { label: 'Refunded', value: dash(fmtMoney(refunded)), note: `${fmtNumber(f.refundedCount ?? 0)} refunded order(s)`, tone: PROUI_TONES[2], icon: '↩' },
+          { label: 'Sources', value: `${fmtNumber(connected)} of ${fmtNumber(total)}`, note: (pending.length || degraded.length) ? `${fmtNumber(pending.length)} pending · ${fmtNumber(degraded.length)} degraded` : 'no connection gaps reported', tone: PROUI_TONES[3], icon: '◈' },
+        ].map((w) => (
+          <div className="col" key={w.label}><ProuiWidget {...w} /></div>
+        ))}
+      </div>
+
+      {/* ---- two inline mini-chart cards ---- */}
+      <div className="row g-3 mb-3">
+        <div className="col-lg-6">
+          <div className="pb-proui-widget h-100">
+            <span className="pb-proui-badge" style={{ background: '#1BBAE1' }} aria-hidden="true">▦</span>
+            <div className="pb-proui-widget-body">
+              <div className="pb-proui-widget-label">Latest sales</div>
+              <div className="pb-proui-widget-note">PKR paid, per day — {fmtNumber(byDay.length)} day(s) reported</div>
+            </div>
+            {series.length ? <Spark values={series} /> : <span className="pb-proui-widget-note">no dated paid orders</span>}
+          </div>
+        </div>
+        <div className="col-lg-6">
+          <div className="pb-proui-widget h-100">
+            <span className="pb-proui-badge" style={{ background: '#5CB85C' }} aria-hidden="true">◕</span>
+            <div className="pb-proui-widget-body">
+              <div className="pb-proui-widget-label">Gateway mix</div>
+              <div className="pb-proui-widget-note">share of paid PKR, taken from the order record</div>
+            </div>
+            <div className="pb-proui-gw">
+              {byGateway.length ? byGateway.slice(0, 4).map((g) => (
+                <div className="pb-proui-gw-row" key={g.gateway}>
+                  <span className="pb-proui-gw-name text-truncate">{asText(g.gateway)}</span>
+                  <span className="pb-proui-gw-bar"><i style={{ width: `${Math.min(100, ((g.pkr || 0) / maxGw) * 100)}%` }} /></span>
+                  <span className="pb-proui-gw-val">{pct(g.pkr || 0, gross)}</span>
+                </div>
+              )) : <span className="pb-proui-widget-note">no gateway reported on a paid order yet</span>}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ---- two panels ---- */}
+      <div className="row g-3">
+        <div className="col-lg-7">
+          <Card title="Settlement ledger" right={<span className="small">{fmtNumber(settlements.length)} row(s)</span>}>
+            {settlements.length ? (
+              <div className="table-responsive">
+                <table className="table table-sm align-middle mb-0">
+                  <thead>
+                    <tr><th>Invoice</th><th>Source</th><th>Gateway</th><th className="text-end">Amount</th><th>Status</th></tr>
+                  </thead>
+                  <tbody>
+                    {settlements.slice(0, 7).map((s, i) => {
+                      const state = s.settlementState || 'not reported';
+                      return (
+                        <tr key={asText(s.reference || s.id || i)}>
+                          <td className="pb-mono small">#{asText(s.reference || s.id || '—')}</td>
+                          <td className="small">{appLabel(s.app)}</td>
+                          <td className="small">{asText(s.gateway || '—')}</td>
+                          <td className="text-end small fw-semibold">{fmtMoney(s.amount, s.currency)}</td>
+                          <td><span className={`badge text-bg-${pillTone(state)}`}>{state}</span></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : <div className="small" style={{ color: 'var(--bs-secondary-color)' }}>No settled payments reported by any source yet.</div>}
+          </Card>
+        </div>
+        <div className="col-lg-5">
+          <Card title="Source status">
+            {byApp.length ? byApp.map((a) => (
+              <div className="pb-proui-src" key={a.app}>
+                <span className="pb-proui-src-dot" style={{ background: APP_COLORS[a.app] || 'var(--pb-accent)' }} />
+                <span className="pb-proui-src-name">{appLabel(a.app)}</span>
+                <span className="pb-proui-src-bar"><i style={{ width: `${Math.min(100, ((a.pkr || 0) / maxApp) * 100)}%`, background: APP_COLORS[a.app] || 'var(--pb-accent)' }} /></span>
+                <span className="pb-proui-src-val">{fmtMoney(a.pkr || 0)}</span>
+              </div>
+            )) : <div className="small" style={{ color: 'var(--bs-secondary-color)' }}>No paid revenue recorded by any application yet.</div>}
+            <div className="d-flex flex-wrap gap-2 mt-3 small">
+              <span className="badge text-bg-success">Connected {fmtNumber(connected)}</span>
+              <span className="badge text-bg-warning text-dark">Pending {fmtNumber(pending.length)}</span>
+              <span className="badge text-bg-danger">Degraded {fmtNumber(degraded.length)}</span>
+            </div>
+            {activity.length > 0 && (
+              <ul className="list-unstyled mb-0 mt-3 small">
+                {activity.slice(0, 3).map((a, i) => (
+                  <li className="d-flex justify-content-between border-bottom py-1" key={i}>
+                    <span className="text-truncate" style={{ maxWidth: 190 }}>{asText(a.action)}</span>
+                    <span className={a.result === 'success' ? 'text-success' : 'text-warning'}>{asText(a.result)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export const SECTIONS = [
   { id: 'superieur', label: 'Superieur', Component: SectionSuperieur, note: 'Hero banner with a live ticker strip, delta KPI cards, income-by-application list, integration-task readiness card, performance strip and an invoice ledger with status pills.' },
+  { id: 'proui', label: 'ProUI', Component: SectionProUI, note: 'Welcome banner with inline KPI stats, flat widgets with a coloured top border and round icon badge, two inline mini-chart cards, settlement ledger and source-status panel.' },
   { id: 'analytics', label: 'Analytics', Component: SectionAnalytics, note: 'Pastel metric banners, order overview, earnings, product/review/sales row.' },
   { id: 'currency', label: 'Currency & Exchange', Component: SectionCurrency, note: 'Currency cards, per-application revenue bars, settlement panel.' },
   { id: 'executive', label: 'Executive Horizontal', Component: SectionExecutive, note: 'Turnover/clients/availability hero, gauges, activity feed, review split.' },

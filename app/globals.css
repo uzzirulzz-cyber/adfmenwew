@@ -701,6 +701,54 @@ a {
   --pb-accent:#5b4bd6; --bs-primary:#5b4bd6; --pb-success:#12b76a; --pb-danger:#f62d51; --pb-warning:#ffab00; }
 [data-pb-layout="superieur-light"] .pb-dash { --pb-surface:#ffffff; --pb-surface-2:#f8f9fc; --pb-line:#e3e6ee; }
 
+/* ---- ProUI pattern: dark welcome banner with inline stats, flat widgets
+   with a coloured top border and round icon badge, inline mini-chart cards,
+   a settlement ledger and a source-status panel. Original CSS. ---- */
+.pb-proui-hero { display:flex; flex-wrap:wrap; gap:18px; align-items:center; justify-content:space-between;
+  border-radius:4px; padding:24px 26px; color:#fff; position:relative; overflow:hidden;
+  border:1px solid rgba(255,255,255,.08);
+  background:linear-gradient(120deg,#394263 0%,#2c3346 55%,#1f2534 100%); }
+.pb-proui-hero::after { content:""; position:absolute; top:-60%; right:-4%; width:460px; height:460px; pointer-events:none;
+  background:radial-gradient(circle at 55% 45%, rgba(27,186,225,.34), rgba(27,186,225,0) 62%); }
+.pb-proui-hero > * { position:relative; }
+.pb-proui-hero-title { font-size:1.6rem; font-weight:400; letter-spacing:-.01em; }
+.pb-proui-hero-title strong { font-weight:700; }
+.pb-proui-hero-sub { font-size:.85rem; opacity:.75; margin-top:2px; }
+.pb-proui-hero-stats { display:flex; flex-wrap:wrap; gap:26px; }
+.pb-proui-stat-v { font-size:1.5rem; font-weight:700; line-height:1.1; }
+.pb-proui-stat-l { font-size:.7rem; letter-spacing:.1em; text-transform:uppercase; opacity:.72; }
+
+.pb-proui-widget { display:flex; align-items:center; gap:14px; padding:16px 18px; border-radius:4px;
+  background:var(--pb-surface); border:1px solid var(--pb-line);
+  border-top:3px solid var(--pb-w-top, var(--pb-accent)); }
+.pb-proui-badge { width:42px; height:42px; border-radius:50%; display:grid; place-items:center; flex:none;
+  color:#fff; font-size:1rem; font-weight:700; }
+.pb-proui-widget-body { min-width:0; flex:1; }
+.pb-proui-widget-label { font-size:.92rem; font-weight:700; color:#1BBAE1; }
+.pb-proui-widget-sub { font-size:1.2rem; font-weight:700; line-height:1.2; }
+.pb-proui-widget-note { font-size:.74rem; color:var(--bs-secondary-color); }
+.pb-proui-gw { display:grid; gap:6px; min-width:180px; flex:1; }
+.pb-proui-gw-row { display:flex; align-items:center; gap:8px; font-size:.76rem; }
+.pb-proui-gw-name { width:96px; }
+.pb-proui-gw-bar { flex:1; height:6px; border-radius:2px; background:rgba(148,163,184,.22); overflow:hidden; }
+.pb-proui-gw-bar i { display:block; height:100%; background:#1BBAE1; }
+.pb-proui-gw-val { width:38px; text-align:right; font-weight:700; }
+.pb-proui-src { display:flex; align-items:center; gap:10px; padding:8px 0; font-size:.82rem;
+  border-bottom:1px solid var(--pb-line); }
+.pb-proui-src:last-of-type { border-bottom:0; }
+.pb-proui-src-dot { width:9px; height:9px; border-radius:50%; flex:none; }
+.pb-proui-src-name { width:84px; font-weight:600; }
+.pb-proui-src-bar { flex:1; height:6px; border-radius:2px; background:rgba(148,163,184,.22); overflow:hidden; }
+.pb-proui-src-bar i { display:block; height:100%; }
+.pb-proui-src-val { font-weight:700; }
+
+[data-pb-layout="proui-light"] { --bs-body-bg:#eaedf1; --bs-body-color:#394263; --bs-border-color:#dde1e8;
+  --pb-accent:#1BBAE1; --bs-primary:#1BBAE1; --pb-success:#5CB85C; --pb-danger:#D9534F; --pb-warning:#F0AD4E; }
+[data-pb-layout="proui-light"] .pb-dash { --pb-surface:#ffffff; --pb-surface-2:#f5f7fa; --pb-line:#e2e6ec; }
+[data-pb-layout="proui-dark"] { --bs-body-bg:#22262e; --bs-body-color:#dfe4ec; --bs-border-color:#333a45;
+  --pb-accent:#1BBAE1; --bs-primary:#1BBAE1; --pb-success:#5CB85C; --pb-danger:#D9534F; --pb-warning:#F0AD4E; }
+[data-pb-layout="proui-dark"] .pb-dash { --pb-surface:#2b313b; --pb-surface-2:#262b34; --pb-line:#39404c; }
+
 /* ---- Loading skeletons ---- */
 .pb-skeleton { padding: 4px 0; }
 .pb-skeleton-row { display: flex; gap: 10px; padding: 9px 4px; }

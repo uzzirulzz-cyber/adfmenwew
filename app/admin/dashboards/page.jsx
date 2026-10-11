@@ -5,7 +5,10 @@ import { PageHeader, Panel, asText } from '../../../components/ui';
 import { SECTIONS } from '../../../components/DashboardSections';
 import { applyTheme, THEME_PRESETS } from '../../../lib/theme';
 
-const PREMIUM = THEME_PRESETS.find((p) => p.preset === 'superieur-violet');
+const PREMIUM_SETUPS = [
+  { key: 'superieur', label: 'Superieur', section: 'superieur', layout: 'superieur-dark', theme: 'superieur-violet' },
+  { key: 'proui', label: 'ProUI', section: 'proui', layout: 'proui-light', theme: 'proui-cyan' },
+].map((s) => ({ ...s, preset: THEME_PRESETS.find((p) => p.preset === s.theme) }));
 
 function csrf() {
   if (typeof document === 'undefined') return '';
@@ -63,23 +66,23 @@ export default function DashboardsPage() {
   const current = SECTIONS.find((s) => s.id === prefs.section) || SECTIONS[0];
   const Section = current.Component;
 
-  // One click wires the three parts of the premium command centre together:
-  // the Superieur section, the Superieur Midnight layout, and the matching
-  // Superieur Violet theme published to the workspace.
-  async function applyPremium() {
+  // One click wires the three parts of a premium set together: its dashboard
+  // section, its layout, and the matching theme published to the workspace.
+  async function applyPremium(setup) {
+    if (!setup || !setup.preset) { setNotice('That premium set is unavailable in this build.'); return; }
     setBusy(true); setNotice(null);
     try {
       const res = await fetch('/api/admin/config', {
         method: 'POST', credentials: 'include',
         headers: { 'content-type': 'application/json', 'x-csrf-token': csrf() },
-        body: JSON.stringify({ action: 'theme:publish', theme: PREMIUM }),
+        body: JSON.stringify({ action: 'theme:publish', theme: setup.preset }),
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) { setNotice(asText(j.error || `HTTP ${res.status}`)); setBusy(false); return; }
-      applyTheme(PREMIUM, PREMIUM.appearance);
-      try { window.localStorage.setItem('pb_theme_mode', PREMIUM.appearance); } catch { /* storage blocked */ }
-      await save({ section: 'superieur', layout: 'superieur-dark' });
-      setNotice('Premium command centre applied — Superieur section, Superieur Midnight layout, Superieur Violet theme.');
+      applyTheme(setup.preset, setup.preset.appearance);
+      try { window.localStorage.setItem('pb_theme_mode', setup.preset.appearance); } catch { /* storage blocked */ }
+      await save({ section: setup.section, layout: setup.layout });
+      setNotice(`${setup.label} applied — section, layout and theme set together.`);
     } catch (e) { setNotice(String(e && e.message ? e.message : e)); }
     setBusy(false);
   }
@@ -88,10 +91,14 @@ export default function DashboardsPage() {
     <div className="pb-dash">
       <PageHeader
         title="Dashboards"
-        subtitle="Seven dashboard sections restyled with this admin's own Bootstrap 5 markup — layout patterns only, no third-party template code. Every figure is read from the existing endpoints."
+        subtitle="Eight dashboard sections restyled with this admin's own Bootstrap 5 markup — layout patterns only, no third-party template code. Every figure is read from the existing endpoints."
         actions={
           <div className="d-flex gap-2">
-            <button type="button" className="btn btn-sm btn-primary" onClick={applyPremium} disabled={busy}>Premium command centre</button>
+            {PREMIUM_SETUPS.map((s) => (
+              <button key={s.key} type="button" className="btn btn-sm btn-primary" onClick={() => applyPremium(s)} disabled={busy}>
+                {s.label}
+              </button>
+            ))}
             <button type="button" className="btn btn-sm btn-outline-secondary" onClick={load} disabled={busy}>{busy ? 'Working…' : 'Refresh'}</button>
           </div>
         }
