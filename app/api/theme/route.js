@@ -28,6 +28,10 @@ export async function GET() {
       themeName: published?.meta?.name || DEFAULT_TOKENS.meta.name,
       presetId: published?.meta?.presetId || DEFAULT_TOKENS.meta.presetId,
       mode,
+      // The client provider rebuilds the editable token set from this; without
+      // it the shell silently fell back to the default palette. Cosmetics only —
+      // no drafts, credentials or session data are ever included.
+      tokens: published,
       vars: tokensToVars(published),
       css: customCssBlock(published?.custom?.css || ''),
       branding: published?.branding || DEFAULT_TOKENS.branding,

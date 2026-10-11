@@ -629,6 +629,8 @@ a {
 [data-pb-layout="starpro-light"] .pb-dash { --pb-surface:#ffffff; --pb-surface-2:#f5f9fe; --pb-line:#dee7f2; }
 [data-pb-layout="starpro-dark"] { --bs-body-bg:#0a1526; --bs-body-color:#eaf2ff; --bs-border-color:#1c3350; --pb-accent:#2e8bff; }
 [data-pb-layout="starpro-dark"] .pb-dash { --pb-surface:#10203a; --pb-surface-2:#0e1c31; --pb-line:#1c3350; }
+[data-pb-layout="taurus-slate"], [data-pb-layout="taurus-topnav"] { --bs-body-bg:#16222e; --bs-body-color:#e8eef4; --bs-border-color:#33414f; --pb-accent:#29b6f6; --bs-primary:#29b6f6; }
+[data-pb-layout="taurus-slate"] .pb-dash, [data-pb-layout="taurus-topnav"] .pb-dash { --pb-surface:#22313f; --pb-surface-2:#1b2936; --pb-line:#33414f; }
 
 /* ---- Loading skeletons ---- */
 .pb-skeleton { padding: 4px 0; }
