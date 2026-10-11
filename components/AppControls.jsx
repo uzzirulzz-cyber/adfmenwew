@@ -7,7 +7,7 @@
 // 'pending' because the server says so.
 // ============================================================
 import { useState } from 'react';
-import { fmtDateTime } from './ui';
+import { fmtDateTime, asText } from './ui';
 import { useSession } from './SessionProvider';
 
 export function AppControls({ slug, initial, onChange }) {
@@ -78,7 +78,7 @@ export function AppControls({ slug, initial, onChange }) {
       )}
 
       {status?.reason && st === 'pending' && (
-        <small className="pb-mono" style={{ color: 'var(--bs-secondary-color)' }}>{status.reason}</small>
+        <small className="pb-mono" style={{ color: 'var(--bs-secondary-color)' }}>{asText(status.reason)}</small>
       )}
 
       {notice && <div className={`alert alert-${notice.tone} py-1 px-2 mb-0 small w-100`}>{notice.text}</div>}

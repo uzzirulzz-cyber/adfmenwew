@@ -272,3 +272,9 @@ export function ExportCSVButton({ filename, columns, rows, label = 'Export CSV' 
   );
 }
 
+// Safe text coercion: an object passed as a React child is a hard crash (React #31).
+export function asText(v) {
+  if (v === null || v === undefined || v === '') return '—';
+  if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') return String(v);
+  try { return JSON.stringify(v); } catch { return String(v); }
+}

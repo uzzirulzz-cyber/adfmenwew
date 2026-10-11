@@ -1,7 +1,7 @@
 'use client';
 
 import { APPS } from '../../../lib/apps';
-import { PageHeader, Panel, StatusBadge, SourceBadge, fmtDateTime } from '../../../components/ui';
+import { PageHeader, Panel, StatusBadge, SourceBadge, fmtDateTime, asText } from '../../../components/ui';
 import { useEffect, useState } from 'react';
 import { useSession } from '../../../components/SessionProvider';
 
@@ -47,7 +47,7 @@ export default function Settings() {
                         <td><small className="pb-mono">{fmtDateTime(s?.lastSync || null)}</small></td>
                         <td>
                           {s?.status === 'pending'
-                            ? <small className="pb-mono text-warning">{s.reason}</small>
+                            ? <small className="pb-mono text-warning">{asText(s.reason)}</small>
                             : <small style={{ color: 'var(--bs-secondary-color)' }}>—</small>}
                         </td>
                       </tr>

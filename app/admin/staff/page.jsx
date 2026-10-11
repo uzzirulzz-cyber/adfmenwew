@@ -7,7 +7,7 @@
 // by the server), so the view cannot drift from the actual rules.
 // ============================================================
 import { useEffect, useState } from 'react';
-import { PageHeader, Panel, DataTable, SourceBadge, StatusBadge } from '../../../components/ui';
+import { PageHeader, Panel, DataTable, SourceBadge, StatusBadge, asText } from '../../../components/ui';
 import { useSession } from '../../../components/SessionProvider';
 
 const ROLE_BADGE = { 'Super Admin': 'danger', 'App Admin': 'primary', Sales: 'success', Support: 'warning', 'Read-only': 'secondary' };
@@ -57,7 +57,7 @@ export default function Staff() {
         subtitle="Permissions are enforced server-side and deny by default. This matrix is rendered from the same table the Route Handlers consult (lib/rbac.js)."
         actions={can('apps:manage') ? <button className="btn btn-sm btn-primary">+ Invite staff</button> : null} />
 
-      {error && <div className="alert alert-danger py-2">{error}</div>}
+      {error && <div className="alert alert-danger py-2">{asText(error)}</div>}
 
       <div className="row g-3">
         <div className="col-lg-7">
