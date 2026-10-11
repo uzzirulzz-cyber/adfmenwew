@@ -218,6 +218,24 @@ export default function AdminShell({ children }) {
     return () => { alive = false; window.removeEventListener('pb-layout-updated', updateLayout); };
   }, [status, api]);
 
+  // Keep the feeds fresh without a scheduler: once per session, if no worker has
+  // run in the last 15 minutes, kick a run. Idempotent, and permission-guarded on
+  // the server; the cron endpoint is the backstop when nobody is in the admin.
+  const freshnessChecked = useRef(false);
+  useEffect(() => {
+    if (status !== 'ready' || freshnessChecked.current) return;
+    freshnessChecked.current = true;
+    (async () => {
+      try {
+        const res = await api('/api/admin/workers');
+        const runs = (res?.workers || []).map((w) => w.lastRunAt).filter(Boolean).sort();
+        const newest = runs.length ? Date.parse(runs[runs.length - 1]) : 0;
+        if (Date.now() - newest < 15 * 60 * 1000) return;
+        await api('/api/admin/workers', { method: 'POST', body: { action: 'run' } });
+      } catch { /* best effort — the cron endpoint is the backstop */ }
+    })();
+  }, [status, api]);
+
   const saveLayoutPatch = async (patch) => {
     const next = { ...layout, ...patch };
     setLayout(next);
