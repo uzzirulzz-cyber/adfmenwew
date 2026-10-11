@@ -1,0 +1,22 @@
+{
+  "name": "playbeat-admin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PlayBeat Digital — central administration dashboard (Next.js 14 + Bootstrap 5) with server-side session auth and env-driven connectors",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "seed:admin": "node scripts/seed-admin.mjs",
+    "db:migrate": "node scripts/migrate-postgres.mjs"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "bootstrap": "^5.3.3",
+    "next": "^14.2.5",
+    "pg": "^8.23.1",
+    "react": "^18.3.1",
+    "react-bootstrap": "^2.10.4",
+    "react-dom": "^18.3.1"
+  }
+}
