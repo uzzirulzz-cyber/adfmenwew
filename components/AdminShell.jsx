@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { APPS, APP_COLORS } from '../lib/apps';
 import { NOTIFICATIONS, CUSTOMERS, ORDERS, LEADS } from '../lib/data';
 import { useSession } from './SessionProvider';
+import { applyTheme, DEFAULT_THEME } from '../lib/theme';
 
 const NAV_SECTIONS = [
   {
@@ -25,40 +26,53 @@ const NAV_SECTIONS = [
     ],
   },
   {
-    label: 'Manage',
+    label: 'Business',
     items: [
       { href: '/admin/products', icon: '◈', label: 'Products & Licenses' },
       { href: '/admin/orders', icon: '⇄', label: 'Orders & Payments' },
       { href: '/admin/customers', icon: '☰', label: 'Customers & CRM' },
+      { href: '/admin/page-builder', icon: '▤', label: 'Website Page Builder' },
+      { href: '/admin/theme-studio', icon: '✦', label: 'Theme Studio' },
+      { href: '/admin/reports', icon: '◷', label: 'Finance & Analytics' },
       { href: '/admin/live', icon: '▶', label: 'Live TV & Playlists' },
       { href: '/admin/sports', icon: '◉', label: 'Sports & Broadcast' },
       { href: '/admin/deals', icon: '◇', label: 'Deals & Listings' },
-      { href: '/admin/reports', icon: '⭳', label: 'Reports & Exports' },
-      { href: '/admin/staff', icon: '⚷', label: 'Staff, Roles & Audit' },
-      { href: '/admin/settings', icon: '⚙', label: 'Settings & Health' },
+      { href: '/admin/settings', icon: '▣', label: 'Integrations & System Settings' },
+      { href: '/admin/staff', icon: '⚷', label: 'Security, Staff & Audit' },
     ],
   },
 ];
 
-function Brand() {
+function Brand({ collapsed = false }) {
   return (
-    <Link href="/admin" className="pb-brand">
+    <Link href="/admin" className={`pb-brand ${collapsed ? 'is-collapsed' : ''}`} title={collapsed ? 'PlayBeat Digital' : undefined}>
       <span className="pb-brand-mark">▶</span>
-      <span>
+      {!collapsed && <span>
         <strong style={{ fontSize: '.98rem', letterSpacing: '.01em' }}>PlayBeat Digital</strong>
         <small>Central Administration</small>
-      </span>
+      </span>}
     </Link>
   );
 }
 
-function SidebarNav({ liveStatuses, onNavigate }) {
+function SidebarNav({ liveStatuses, onNavigate, layout, collapsed = false }) {
   const pathname = usePathname();
+  const order = layout?.navOrder || [];
+  const hidden = new Set(layout?.hiddenNav || []);
+  const pinned = new Set(layout?.pinnedNav || []);
+  const sections = NAV_SECTIONS.map((section) => ({
+    ...section,
+    items: section.items.filter((item) => !hidden.has(item.href)).sort((a, b) => {
+      if (pinned.has(a.href) !== pinned.has(b.href)) return pinned.has(a.href) ? -1 : 1;
+      const ia = order.indexOf(a.href), ib = order.indexOf(b.href);
+      return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib);
+    }),
+  })).filter((section) => section.items.length);
   return (
     <nav className="pb-sidebar-body" aria-label="Admin navigation">
-      {NAV_SECTIONS.map((section) => (
+      {sections.map((section) => (
         <div key={section.label}>
-          <div className="pb-nav-section">{section.label}</div>
+          <div className="pb-nav-section">{collapsed ? '·' : section.label}</div>
           {section.items.map((item) => {
             const active = item.href === '/admin' ? pathname === '/admin' : pathname.startsWith(item.href);
             // Live status drives the dot when we have it; the registry value is
@@ -66,8 +80,8 @@ function SidebarNav({ liveStatuses, onNavigate }) {
             const dot = item.slug ? (liveStatuses?.[item.slug]?.status || 'pending') : null;
             return (
               <Link key={item.href} href={item.href} onClick={onNavigate}
-                className={`pb-navlink ${active ? 'active' : ''}`}>
-                <span className="pb-ico">{item.icon}</span>
+                className={`pb-navlink ${active ? 'active' : ''}`} title={collapsed ? item.label : undefined} aria-label={collapsed ? item.label : undefined}>
+                <span className="pb-ico" aria-hidden="true">{item.icon}</span>
                 <span className="text-truncate">{item.label}</span>
                 {item.slug && <span className={`pb-appdot ${dot}`} title={`Status: ${dot}`} />}
               </Link>
@@ -148,25 +162,22 @@ function GlobalSearch() {
 }
 const fmtShort = (o) => `${o.currency} ${o.amount.toLocaleString()}`;
 
-function ThemeToggle() {
-  const [theme, setTheme] = useState('dark');
+function ThemeToggle({ theme }) {
+  const [mode, setMode] = useState('auto');
   useEffect(() => {
-    const saved = localStorage.getItem('pb_theme') || 'dark';
-    setTheme(saved);
-    document.documentElement.dataset.bsTheme = saved;
-  }, []);
-  const toggle = () => {
-    const next = theme === 'dark' ? 'light' : 'dark';
-    setTheme(next);
-    document.documentElement.dataset.bsTheme = next;
-    localStorage.setItem('pb_theme', next);
+    const saved = localStorage.getItem('pb_theme_mode') || theme?.appearance || 'auto';
+    setMode(saved);
+    applyTheme(theme || DEFAULT_THEME, saved);
+  }, [theme]);
+  const setAppearance = (next) => {
+    setMode(next);
+    localStorage.setItem('pb_theme_mode', next);
+    applyTheme(theme || DEFAULT_THEME, next);
   };
   return (
-    <button className="btn btn-sm btn-outline-secondary" onClick={toggle}
-      aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
-      title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>
-      {theme === 'dark' ? '☀' : '☾'}
-    </button>
+    <select className="form-select form-select-sm pb-appearance-select" aria-label="Color appearance" value={mode} onChange={(e) => setAppearance(e.target.value)}>
+      <option value="auto">System</option><option value="light">Light</option><option value="dark">Dark</option>
+    </select>
   );
 }
 
@@ -175,6 +186,8 @@ export default function AdminShell({ children }) {
   const pathname = usePathname();
   const { session, status, signOut, api } = useSession();
   const [liveStatuses, setLiveStatuses] = useState(null);
+  const [layout, setLayout] = useState({});
+  const [publishedTheme, setPublishedTheme] = useState(DEFAULT_THEME);
   const bootstrapped = useRef(false);
 
   useEffect(() => {
@@ -208,6 +221,30 @@ export default function AdminShell({ children }) {
     })();
   }, [status, api]);
 
+  useEffect(() => {
+    if (status !== 'ready') return;
+    let alive = true;
+    api('/api/admin/config').then((res) => {
+      if (!alive || !res?.ok) return;
+      const theme = res.publishedTheme || DEFAULT_THEME;
+      setPublishedTheme(theme);
+      setLayout(res.layout || {});
+      applyTheme(theme, localStorage.getItem('pb_theme_mode') || theme.appearance || 'auto');
+      const density = res.layout?.density || 'comfortable';
+      document.documentElement.style.setProperty('--pb-content-gap', density === 'compact' ? '12px' : density === 'spacious' ? '24px' : '16px');
+    });
+    const updateLayout = (event) => setLayout((current) => ({ ...current, ...(event.detail || {}) }));
+    window.addEventListener('pb-layout-updated', updateLayout);
+    return () => { alive = false; window.removeEventListener('pb-layout-updated', updateLayout); };
+  }, [status, api]);
+
+  const saveLayoutPatch = async (patch) => {
+    const next = { ...layout, ...patch };
+    setLayout(next);
+    const result = await api('/api/admin/config', { method: 'POST', body: { action: 'layout:save', layout: next } });
+    if (!result?.ok) setLayout(layout);
+  };
+
   if (status === 'loading' || status === 'anonymous') {
     return (
       <div className="pb-auth-wrap">
@@ -221,15 +258,25 @@ export default function AdminShell({ children }) {
 
   const initials = (session?.user?.email || '??').slice(0, 2).toUpperCase();
   const connected = APPS.filter((a) => (liveStatuses?.[a.slug]?.status || 'pending') === 'connected').length;
+  const side = layout.sidebarSide === 'right' ? 'right' : 'left';
+  const sidebarWidth = layout.sidebarCollapsed ? 76 : Number(layout.sidebarWidth || 264);
+  const shellStyle = {
+    '--pb-shell-sidebar-width': `${sidebarWidth}px`,
+    '--pb-shell-sidebar-left': side === 'left' ? '0' : 'auto',
+    '--pb-shell-sidebar-right': side === 'right' ? '0' : 'auto',
+    '--pb-shell-main-left': side === 'left' ? `${sidebarWidth}px` : '0',
+    '--pb-shell-main-right': side === 'right' ? `${sidebarWidth}px` : '0',
+  };
 
   return (
-    <div className="d-flex">
+    <div className="d-flex pb-app-shell" style={shellStyle}>
       {/* Desktop sidebar */}
-      <aside className="pb-sidebar d-none d-lg-flex">
-        <Brand />
-        <SidebarNav liveStatuses={liveStatuses} />
+      <aside className={`pb-sidebar d-none d-lg-flex ${layout.sidebarCollapsed ? 'is-collapsed' : ''}`}>
+        <Brand collapsed={layout.sidebarCollapsed} />
+        <SidebarNav liveStatuses={liveStatuses} layout={layout} collapsed={layout.sidebarCollapsed} />
         <div className="p-3" style={{ borderTop: '1px solid rgba(255,255,255,.06)', fontSize: '.75rem', color: '#63718a' }}>
-          {connected}/{APPS.length} apps connected · session cookie
+          {!layout.sidebarCollapsed && <div className="mb-2">{connected}/{APPS.length} apps connected · session cookie</div>}
+          <button className="btn btn-sm btn-outline-secondary w-100" aria-label={layout.sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={layout.sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => saveLayoutPatch({ sidebarCollapsed: !layout.sidebarCollapsed })}>{layout.sidebarCollapsed ? '»' : 'Collapse sidebar'}</button>
         </div>
       </aside>
 
@@ -239,11 +286,11 @@ export default function AdminShell({ children }) {
           <Brand />
           <button type="button" className="btn-close btn-close-white me-3" data-bs-dismiss="offcanvas" aria-label="Close" />
         </div>
-        <SidebarNav liveStatuses={liveStatuses} onNavigate={() => document.querySelector('#pbOffcanvas .btn-close')?.click()} />
+        <SidebarNav liveStatuses={liveStatuses} layout={layout} onNavigate={() => document.querySelector('#pbOffcanvas .btn-close')?.click()} />
       </div>
 
       <div className="pb-main">
-        <header className="pb-topbar">
+        <header className={`pb-topbar ${layout.headerPosition === 'static' ? 'is-static' : ''}`}>
           <button className="btn btn-sm btn-outline-secondary d-lg-none" data-bs-toggle="offcanvas"
             data-bs-target="#pbOffcanvas" aria-label="Open navigation">☰</button>
           <Breadcrumbs />
@@ -292,7 +339,13 @@ export default function AdminShell({ children }) {
             </ul>
           </div>
 
-          <ThemeToggle />
+          <div className="dropdown">
+            <button className="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">＋ Create</button>
+            <ul className="dropdown-menu dropdown-menu-end"><li><h6 className="dropdown-header">Quick create</h6></li><li><Link className="dropdown-item" href="/admin/products">Product or license</Link></li><li><Link className="dropdown-item" href="/admin/orders">Review orders</Link></li><li><Link className="dropdown-item" href="/admin/customers">Customer or lead</Link></li></ul>
+          </div>
+          <span className="pb-system-status d-none d-xl-inline-flex" title={`${connected} of ${APPS.length} app connectors healthy`}><i />{connected}/{APPS.length} connected</span>
+          <Link href="/admin/theme-studio" className="btn btn-sm btn-outline-secondary d-none d-xl-inline-flex">✦ Customize</Link>
+          <ThemeToggle theme={publishedTheme} />
 
           {/* Account — role and scope come from the server session */}
           <div className="dropdown">

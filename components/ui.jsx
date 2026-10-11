@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { APP_COLORS, APPS } from '../lib/apps';
 
 /* ---------- Formatting helpers ---------- */
@@ -81,10 +81,76 @@ export function SourceBadge({ slug }) {
 }
 
 /* ---------- Generic data table with pagination ---------- */
-export function DataTable({ columns, rows, pageSize = 8, empty }) {
+export function DataTable({ columns, rows, pageSize = 8, empty, onBulkAction, editableKeys = [], onEdit }) {
   const [page, setPage] = useState(0);
-  const pages = Math.max(1, Math.ceil(rows.length / pageSize));
-  const view = rows.slice(page * pageSize, page * pageSize + pageSize);
+  const [query, setQuery] = useState('');
+  const [filterKey, setFilterKey] = useState('');
+  const [filterValue, setFilterValue] = useState('');
+  const [sort, setSort] = useState({ key: '', direction: 'asc' });
+  const [visible, setVisible] = useState(columns.map((column) => column.key));
+  const [density, setDensity] = useState('comfortable');
+  const [selected, setSelected] = useState([]);
+  const [savedViews, setSavedViews] = useState([]);
+  const [viewName, setViewName] = useState('');
+  const tableKey = columns.map((column) => column.key).join(',');
+
+  useEffect(() => {
+    try { setSavedViews(JSON.parse(localStorage.getItem(`pb_table_views:${tableKey}`) || '[]')); } catch { setSavedViews([]); }
+  }, [tableKey]);
+
+  const filterOptions = useMemo(() => {
+    if (!filterKey) return [];
+    return [...new Set(rows.map((row) => String(row[filterKey] ?? '')).filter(Boolean))].sort();
+  }, [rows, filterKey]);
+  const filteredRows = useMemo(() => {
+    const needle = query.trim().toLocaleLowerCase();
+    const result = rows.filter((row) => {
+      if (filterKey && filterValue && String(row[filterKey] ?? '') !== filterValue) return false;
+      if (!needle) return true;
+      return columns.some((column) => String(typeof column.value === 'function' ? column.value(row) : row[column.key] ?? '').toLocaleLowerCase().includes(needle));
+    });
+    if (!sort.key) return result;
+    return [...result].sort((a, b) => {
+      const av = a[sort.key] ?? '', bv = b[sort.key] ?? '';
+      const an = Number(av), bn = Number(bv);
+      const comparison = av !== '' && bv !== '' && Number.isFinite(an) && Number.isFinite(bn)
+        ? an - bn : String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: 'base' });
+      return sort.direction === 'asc' ? comparison : -comparison;
+    });
+  }, [rows, columns, query, filterKey, filterValue, sort]);
+  const pages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const view = filteredRows.slice(page * pageSize, page * pageSize + pageSize);
+  const shownColumns = columns.filter((column) => visible.includes(column.key));
+  const rowId = (row, index) => String(row.id || row.sku || row.orderNo || row.email || index);
+  const toggleSort = (key) => { setSort((current) => ({ key, direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc' })); setPage(0); };
+  const saveView = () => {
+    const name = viewName.trim();
+    if (!name) return;
+    const next = [...savedViews.filter((item) => item.name !== name), { name, query, filterKey, filterValue, sort, visible, density }].slice(-12);
+    setSavedViews(next);
+    localStorage.setItem(`pb_table_views:${tableKey}`, JSON.stringify(next));
+    setViewName('');
+  };
+  const applyView = (event) => {
+    const saved = savedViews.find((item) => item.name === event.target.value);
+    if (!saved) return;
+    setQuery(saved.query || ''); setFilterKey(saved.filterKey || ''); setFilterValue(saved.filterValue || ''); setSort(saved.sort || { key: '', direction: 'asc' });
+    if (Array.isArray(saved.visible)) setVisible(saved.visible.filter((key) => columns.some((column) => column.key === key)));
+    if (['compact', 'comfortable', 'spacious'].includes(saved.density)) setDensity(saved.density);
+    setPage(0);
+  };
+  const exportRows = (kind) => {
+    const cells = shownColumns;
+    const valueFor = (row, column) => String(typeof column.value === 'function' ? column.value(row) : row[column.key] ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+    if (kind === 'excel') {
+      const html = `<html><head><meta charset="utf-8" /></head><body><table><thead><tr>${cells.map((column) => `<th>${valueFor({ [column.key]: column.label }, column)}</th>`).join('')}</tr></thead><tbody>${filteredRows.map((row) => `<tr>${cells.map((column) => `<td>${valueFor(row, column)}</td>`).join('')}</tr>`).join('')}</tbody></table></body></html>`;
+      const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+      const anchor = document.createElement('a'); anchor.href = URL.createObjectURL(blob); anchor.download = 'playbeat-table.xls'; anchor.click(); URL.revokeObjectURL(anchor.href); return;
+    }
+    const csv = [cells.map((column) => JSON.stringify(column.label)).join(','), ...filteredRows.map((row) => cells.map((column) => JSON.stringify(typeof column.value === 'function' ? column.value(row) : row[column.key] ?? '')).join(','))].join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const anchor = document.createElement('a'); anchor.href = URL.createObjectURL(blob); anchor.download = 'playbeat-table.csv'; anchor.click(); URL.revokeObjectURL(anchor.href);
+  };
 
   if (!rows.length) {
     return <EmptyState title={empty?.title || 'Nothing here yet'} body={empty?.body} />;
@@ -92,41 +158,56 @@ export function DataTable({ columns, rows, pageSize = 8, empty }) {
 
   return (
     <div>
-      <div className="pb-table-wrap">
-        <table className="table table-hover align-middle">
+      <div className="pb-table-toolbar">
+        <input className="form-control form-control-sm" style={{ maxWidth: 250 }} type="search" placeholder="Search this table…" aria-label="Search table" value={query} onChange={(e) => { setQuery(e.target.value); setPage(0); }} />
+        <select className="form-select form-select-sm" style={{ maxWidth: 145 }} aria-label="Filter by column" value={filterKey} onChange={(e) => { setFilterKey(e.target.value); setFilterValue(''); setPage(0); }}><option value="">No filter</option>{columns.filter((column) => rows.some((row) => row[column.key] !== undefined)).map((column) => <option key={column.key} value={column.key}>{column.label}</option>)}</select>
+        {filterKey && <select className="form-select form-select-sm" style={{ maxWidth: 165 }} aria-label={`Filter ${filterKey}`} value={filterValue} onChange={(e) => { setFilterValue(e.target.value); setPage(0); }}><option value="">All values</option>{filterOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select>}
+        <details className="pb-column-picker"><summary className="btn btn-sm btn-outline-secondary">Columns</summary><div className="dropdown-menu show p-2">{columns.map((column) => <label key={column.key} className="dropdown-item d-flex gap-2 align-items-center"><input type="checkbox" checked={visible.includes(column.key)} onChange={(e) => setVisible((current) => e.target.checked ? [...current, column.key] : current.filter((key) => key !== column.key))} />{column.label}</label>)}</div></details>
+        <select className="form-select form-select-sm" style={{ maxWidth: 132 }} aria-label="Table density" value={density} onChange={(e) => setDensity(e.target.value)}><option value="compact">Compact rows</option><option value="comfortable">Comfortable</option><option value="spacious">Spacious rows</option></select>
+        <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => exportRows('csv')}>CSV</button>
+        <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => exportRows('excel')}>Excel</button>
+      </div>
+      <div className="d-flex flex-wrap align-items-center gap-2 px-3 pb-2">
+        {selected.length > 0 && <><span className="small" aria-live="polite">{selected.length} selected</span>{onBulkAction && <button className="btn btn-sm btn-outline-primary" onClick={() => onBulkAction(selected)}>Bulk action</button>}</>}
+        <select className="form-select form-select-sm ms-auto" style={{ maxWidth: 170 }} aria-label="Saved table views" value="" onChange={applyView}><option value="">Saved views</option>{savedViews.map((saved) => <option key={saved.name} value={saved.name}>{saved.name}</option>)}</select>
+        <input className="form-control form-control-sm" style={{ maxWidth: 150 }} aria-label="Saved view name" placeholder="Name current view" value={viewName} onChange={(e) => setViewName(e.target.value)} />
+        <button className="btn btn-sm btn-outline-secondary" disabled={!viewName.trim()} onClick={saveView}>Save view</button>
+      </div>
+      <div className={`pb-table-wrap pb-table-density-${density}`}>
+        <table className="table table-hover align-middle pb-data-grid">
           <thead>
-            <tr>{columns.map((c) => <th key={c.key} scope="col">{c.label}</th>)}</tr>
+            <tr><th className="pb-select-cell"><input type="checkbox" aria-label="Select visible rows" checked={view.length > 0 && view.every((row, i) => selected.includes(rowId(row, page * pageSize + i)))} onChange={(e) => setSelected((current) => e.target.checked ? [...new Set([...current, ...view.map((row, i) => rowId(row, page * pageSize + i))])] : current.filter((id) => !view.some((row, i) => rowId(row, page * pageSize + i) === id)))} /></th>{shownColumns.map((c) => <th key={c.key} scope="col" aria-sort={sort.key === c.key ? (sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}><button type="button" className="pb-th-sort" onClick={() => toggleSort(c.key)}>{c.label}<span aria-hidden="true">{sort.key === c.key ? (sort.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}</span></button></th>)}</tr>
           </thead>
           <tbody>
             {view.map((row, i) => (
-              <tr key={row.id || row.sku || i}>
-                {columns.map((c) => (
-                  <td key={c.key}>{c.render ? c.render(row) : row[c.key]}</td>
+              <tr key={rowId(row, page * pageSize + i)}>
+                <td className="pb-select-cell"><input type="checkbox" aria-label={`Select row ${rowId(row, page * pageSize + i)}`} checked={selected.includes(rowId(row, page * pageSize + i))} onChange={(e) => setSelected((current) => e.target.checked ? [...current, rowId(row, page * pageSize + i)] : current.filter((id) => id !== rowId(row, page * pageSize + i)))} /></td>
+                {shownColumns.map((c) => (
+                  <td key={c.key} onDoubleClick={() => { if (editableKeys.includes(c.key) && onEdit) { const value = window.prompt(`Update ${c.label}`, String(row[c.key] ?? '')); if (value !== null) onEdit(row, c.key, value); } }} title={editableKeys.includes(c.key) && onEdit ? 'Double-click to edit' : undefined}>{c.render ? c.render(row) : row[c.key]}</td>
                 ))}
               </tr>
             ))}
+            {filteredRows.length === 0 && <tr><td colSpan={shownColumns.length + 1}><EmptyState title="No matching rows" body="Change or clear your search and filters." /></td></tr>}
           </tbody>
         </table>
       </div>
-      {pages > 1 && (
-        <div className="d-flex justify-content-between align-items-center px-3 py-2" style={{ borderTop: '1px solid var(--pb-line)' }}>
+      <div className="d-flex justify-content-between align-items-center px-3 py-2" style={{ borderTop: '1px solid var(--pb-line)' }}>
           <small style={{ color: 'var(--bs-secondary-color)' }}>
-            Page {page + 1} of {pages} · {rows.length} records
+            Page {page + 1} of {pages} · {filteredRows.length} of {rows.length} records
           </small>
           <div className="btn-group btn-group-sm">
-            <button className="btn btn-outline-secondary" disabled={page === 0} onClick={() => setPage(page - 1)}>‹ Prev</button>
-            <button className="btn btn-outline-secondary" disabled={page >= pages - 1} onClick={() => setPage(page + 1)}>Next ›</button>
+            <button className="btn btn-outline-secondary" disabled={page === 0} onClick={() => setPage((current) => Math.max(0, current - 1))}>‹ Prev</button>
+            <button className="btn btn-outline-secondary" disabled={page >= pages - 1} onClick={() => setPage((current) => Math.min(pages - 1, current + 1))}>Next ›</button>
           </div>
         </div>
-      )}
     </div>
   );
 }
 
 /* ---------- Card wrapper ---------- */
-export function Panel({ title, actions, children, pad = true }) {
+export function Panel({ title, actions, children, pad = true, className = '' }) {
   return (
-    <div className="pb-card h-100">
+    <div className={`pb-card h-100 ${className}`}>
       {title && (
         <div className="pb-card-head">
           <strong style={{ color: 'var(--bs-emphasis-color)', fontSize: '.95rem' }}>{title}</strong>

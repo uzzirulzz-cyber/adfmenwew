@@ -32,6 +32,12 @@ CREATE TABLE IF NOT EXISTS pb_sync_state (
   data jsonb NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS pb_admin_config (
+  config_key text PRIMARY KEY,
+  value jsonb NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS pb_audit (
   id text PRIMARY KEY,
   at timestamptz NOT NULL,
