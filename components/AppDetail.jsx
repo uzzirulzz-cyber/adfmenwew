@@ -38,7 +38,14 @@ export default function AppDetail({ app }) {
           </span>
         }
         subtitle={`${app.domain} · Connector: ${app.connector}`}
-        actions={<Link href="/admin/apps" className="btn btn-sm btn-outline-secondary">← App Registry</Link>}
+        actions={<div className="d-flex flex-wrap gap-2">
+          {app.sourceRepository && (
+            <a className="btn btn-sm btn-outline-secondary" href={app.sourceRepository.url} target="_blank" rel="noreferrer">
+              GitHub source ↗
+            </a>
+          )}
+          <Link href="/admin/apps" className="btn btn-sm btn-outline-secondary">← App Registry</Link>
+        </div>}
       />
 
       {status === 'pending' && (
@@ -82,6 +89,42 @@ export default function AppDetail({ app }) {
           </div>
         ))}
       </div>
+
+      {app.sourceRepository && app.sourceModules?.length > 0 && (
+        <section className="mt-4" aria-labelledby="source-modules-heading">
+          <div className="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+            <div>
+              <h2 id="source-modules-heading" className="h6 mb-1" style={{ color: 'var(--bs-emphasis-color)' }}>
+                Features in the GitHub source
+              </h2>
+              <p className="small mb-0" style={{ color: 'var(--bs-secondary-color)' }}>
+                Inventory from <a href={app.sourceRepository.url} target="_blank" rel="noreferrer">{app.sourceRepository.name}</a> ({app.sourceRepository.branch}).
+                {' '}This code inventory does not indicate a live API connection.
+              </p>
+            </div>
+          </div>
+          <div className="row g-3">
+            {app.sourceModules.map((module) => (
+              <div className="col-md-6 col-xl-4" key={module.name}>
+                <div className="pb-card h-100">
+                  <div className="pb-card-body h-100 d-flex flex-column">
+                    <h3 className="h6 mb-2" style={{ color: 'var(--bs-emphasis-color)' }}>{module.name}</h3>
+                    <p className="small mb-3" style={{ color: 'var(--bs-secondary-color)' }}>{module.description}</p>
+                    <a
+                      className="small mt-auto"
+                      href={`${app.sourceRepository.url}/blob/${app.sourceRepository.branch}/${module.path}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      View source file ↗
+                    </a>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <p className="mt-4" style={{ color: 'var(--bs-secondary-color)', fontSize: '.88rem' }}>
         {app.summary} Records from {app.name} always keep their original IDs and source label wherever they
