@@ -12,7 +12,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" data-bs-theme="dark" suppressHydrationWarning>
+    <html lang="en" data-bs-theme="light" suppressHydrationWarning>
       <head>
         {/* Paints the published theme before hydration so there is no flash of
             the wrong palette. Reads a cosmetic cache only — never credentials. */}

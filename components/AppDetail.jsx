@@ -52,16 +52,16 @@ export default function AppDetail({ app }) {
         <div className="alert alert-warning d-flex gap-2 align-items-start">
           <span>⚠️</span>
           <div>
-            <strong>Configuration required.</strong> This application is registered but has not passed an
-            authenticated health check, so it is intentionally <em>not</em> shown as connected and no metrics
-            are displayed for it. Add its server-side credentials (see Settings → Integration health), then
-            run <em>Test Connection</em>.
+            <strong>Configuration required.</strong> {live.status?.reason || 'This application has not passed a health check.'}
+            {' '}It is intentionally <em>not</em> shown as connected and no metrics are displayed for it. Add its server-side
+            credentials or complete its upstream setup, then run <em>Test Connection</em>.
           </div>
         </div>
       )}
       {status === 'degraded' && (
         <div className="alert alert-warning">
-          <strong>Stale data:</strong> last successful sync {fmtDateTime(lastSync)}. Figures below may be out of date — retry synchronization.
+          <strong>Feed needs attention:</strong> {live.status?.reason || 'The upstream health check is failing.'}
+          {' '}Last successful sync: {fmtDateTime(lastSync)}.
         </div>
       )}
 

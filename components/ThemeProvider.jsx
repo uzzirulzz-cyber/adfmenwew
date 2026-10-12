@@ -45,8 +45,8 @@ export function ThemeProvider({ children }) {
   const [tokens, setTokens] = useState(DEFAULT_TOKENS);
   const [source, setSource] = useState('default'); // default | published
   const [loading, setLoading] = useState(true);
-  const [mode, setModeState] = useState('dark');
-  const [systemMode, setSystemMode] = useState('dark');
+  const [mode, setModeState] = useState('light');
+  const [systemMode, setSystemMode] = useState('light');
   const [language, setLanguage] = useState('en');
   const [quickPanel, setQuickPanel] = useState(false);
   const systemTokens = useRef(DEFAULT_TOKENS);

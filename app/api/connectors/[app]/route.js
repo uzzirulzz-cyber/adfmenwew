@@ -11,6 +11,7 @@ import { allRecords, getSyncState } from '../../../../lib/store';
 import { csrfValid } from '../../../../lib/auth/guard';
 import { audit } from '../../../../lib/audit';
 import { breakerOpen } from '../../../../lib/http';
+import { hydrateConnectorEnv } from '../../../../lib/connectors/storeCreds';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -46,6 +47,8 @@ export async function GET(req, { params }) {
   }
 
   if (!can(session, 'dashboard:view', app)) return deny(session, 'dashboard:view', app, 403);
+
+  await hydrateConnectorEnv([app]);
 
   const connector = getConnector(app);
   if (!connector) return NextResponse.json({ error: 'unknown application' }, { status: 404 });
@@ -104,6 +107,8 @@ export async function POST(req, { params }) {
   }
 
   if (!can(session, perm, app)) return deny(session, perm, app, 403);
+
+  await hydrateConnectorEnv([app]);
 
   const connector = getConnector(app);
   if (!connector) return NextResponse.json({ error: 'unknown application' }, { status: 404 });
