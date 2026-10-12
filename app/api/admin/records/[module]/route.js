@@ -23,6 +23,7 @@ import { queryRecords, discoverKeys } from '../../../../../lib/records';
 import { DATA_MODULES } from '../../../../../lib/modules';
 import { getConnector, connectorStatus } from '../../../../../lib/connectors';
 import { upsertRecords } from '../../../../../lib/store';
+import { loadMetaToken } from '../../../../../lib/connectors/metaOAuth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -36,6 +37,12 @@ async function statusFor(apps) {
   const out = {};
   for (const app of apps) {
     if (app === 'whatsapp') continue;
+    if (app === 'meta') {
+      const token = await loadMetaToken().catch(() => null);
+      const valid = Boolean(token?.accessToken && (!token.expiresAt || Date.parse(token.expiresAt) > Date.now()));
+      out.meta = { slug: 'meta', status: valid ? 'connected' : 'pending', configured: valid, reason: valid ? null : 'Connect Meta and grant the required permissions.' };
+      continue;
+    }
     try {
       out[app] = await connectorStatus(app);
     } catch (error) {
@@ -115,6 +122,14 @@ export async function PATCH(req, { params }) {
   }
 
   const connector = getConnector(app);
+  if (app === 'meta' && params.module === 'crm') {
+    const allowed = ['stage', 'owner', 'lastTouch'];
+    const safeChanges = Object.fromEntries(Object.entries(changes).filter(([key]) => allowed.includes(key)));
+    if (!Object.keys(safeChanges).length) return NextResponse.json({ error: 'Only CRM stage, owner and last-touch fields can be changed on imported Meta leads.' }, { status: 400 });
+    await upsertRecords('meta', [{ sourceId, ...safeChanges }]);
+    await audit({ action: 'records.patch:crm', actor: session.email, target: `meta/${sourceId}`, result: 'success', detail: { fields: Object.keys(safeChanges) } });
+    return NextResponse.json({ ok: true, message: 'CRM fields saved for the imported Meta lead.' });
+  }
   if (!connector) return NextResponse.json({ error: 'no connector for that application' }, { status: 404 });
 
   try {
