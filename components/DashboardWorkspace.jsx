@@ -7,6 +7,7 @@ import { ORDERS, CHANNELS, DEALS, AUDIT } from '../lib/data';
 import { PageHeader, StatCard, StatusBadge, SourceBadge, Panel, BarChart, DataTable, fmtMoney, fmtDateTime } from './ui';
 import DataSourceBanner from './DataSourceBanner';
 import { useSession } from './SessionProvider';
+import PlayBeatOrbitMark from './PlayBeatOrbitMark';
 
 const WIDGETS = [
   { id: 'kpis', label: 'Revenue, orders, viewers and enquiries' },
@@ -102,7 +103,12 @@ export default function DashboardWorkspace() {
   const order = dashboard.widgetOrder?.length ? dashboard.widgetOrder : WIDGETS.map((widget) => widget.id);
 
   return <>
-    <PageHeader title="Central Command Center" subtitle="Business overview across PlayBeat Digital applications. Connector data is labeled and stays separate by source." actions={<><button className="btn btn-sm btn-outline-secondary" onClick={() => setCustomizing((value) => !value)}>{customizing ? 'Close editor' : 'Customize dashboard'}</button><Link href="/admin/apps" className="btn btn-sm btn-primary">＋ Applications</Link></>} />
+    <div className="pb-dashboard-heading">
+      <PlayBeatOrbitMark size="dashboard" />
+      <div className="pb-dashboard-heading-content">
+        <PageHeader title="Central Command Center" subtitle="Business overview across PlayBeat Digital applications. Connector data is labeled and stays separate by source." actions={<><button className="btn btn-sm btn-outline-secondary" onClick={() => setCustomizing((value) => !value)}>{customizing ? 'Close editor' : 'Customize dashboard'}</button><Link href="/admin/apps" className="btn btn-sm btn-primary">＋ Applications</Link></>} />
+      </div>
+    </div>
     {mode && <DataSourceBanner mode={mode} statuses={connectorStates} />}
     {message && <div className="alert alert-secondary py-2 small" role="status">{message}</div>}
     {customizing && <div className="pb-card mb-3"><div className="pb-card-head"><strong>Personal dashboard layout</strong><span className="small">Changes are saved for your admin account</span></div><div className="pb-card-body"><div className="row g-3 align-items-end mb-3"><div className="col-sm-6 col-lg-4"><label className="form-label small">Refresh interval</label><select className="form-select form-select-sm" value={dashboard.refreshSeconds} onChange={(e) => setDashboard({ ...dashboard, refreshSeconds: Number(e.target.value) })}><option value="0">Manual</option><option value="60">Every minute</option><option value="300">Every 5 minutes</option><option value="900">Every 15 minutes</option></select></div><div className="col"><small style={{ color: 'var(--bs-secondary-color)' }}>Refresh reloads the dashboard route. It does not create new analytics or mark a disconnected source as live.</small></div><div className="col-auto"><button className="btn btn-sm btn-primary" disabled={busy} onClick={saveDashboard}>Save layout</button></div></div><div className="pb-widget-editor">{order.map((id, index) => { const widget = WIDGETS.find((item) => item.id === id); if (!widget) return null; return <div className="pb-widget-editor-row" key={id}><span className="pb-widget-grip" aria-hidden="true">⠿</span><strong className="small">{widget.label}</strong><select className="form-select form-select-sm" aria-label={`${widget.label} width`} value={(dashboard.widgetSizes || {})[id] || (id === 'kpis' ? '12' : '6')} onChange={(e) => setDashboard({ ...dashboard, widgetSizes: { ...(dashboard.widgetSizes || {}), [id]: e.target.value } })}><option value="4">One third</option><option value="6">Half width</option><option value="12">Full width</option></select><button className="btn btn-sm btn-outline-secondary" aria-label={`Move ${widget.label} up`} disabled={!index} onClick={() => moveWidget(id, -1)}>↑</button><button className="btn btn-sm btn-outline-secondary" aria-label={`Move ${widget.label} down`} disabled={index === order.length - 1} onClick={() => moveWidget(id, 1)}>↓</button><input className="form-check-input" type="checkbox" aria-label={`Show ${widget.label}`} checked={!(dashboard.hiddenWidgets || []).includes(id)} onChange={(e) => setDashboard({ ...dashboard, hiddenWidgets: e.target.checked ? (dashboard.hiddenWidgets || []).filter((item) => item !== id) : [...(dashboard.hiddenWidgets || []), id] })} /></div>; })}</div></div></div>}

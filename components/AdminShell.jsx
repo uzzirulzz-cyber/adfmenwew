@@ -8,6 +8,7 @@ import { NOTIFICATIONS, CUSTOMERS, ORDERS, LEADS } from '../lib/data';
 import { useSession } from './SessionProvider';
 import { applyTheme, DEFAULT_THEME } from '../lib/theme';
 import { NAV_SECTIONS as MODULE_NAV } from '../lib/modules';
+import PlayBeatOrbitMark from './PlayBeatOrbitMark';
 
 // Sidebar navigation comes from the module registry (lib/modules.js) — the
 // single source of truth — so every page that exists is reachable from the
@@ -26,7 +27,7 @@ const NAV_SECTIONS = [
 function Brand({ collapsed = false }) {
   return (
     <Link href="/admin" className={`pb-brand ${collapsed ? 'is-collapsed' : ''}`} title={collapsed ? 'PlayBeat Digital' : undefined}>
-      <span className="pb-brand-mark">▶</span>
+      <PlayBeatOrbitMark size="nav" />
       {!collapsed && <span>
         <strong style={{ fontSize: '.98rem', letterSpacing: '.01em' }}>PlayBeat Digital</strong>
         <small>Central Administration</small>
