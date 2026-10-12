@@ -13,6 +13,7 @@ function SignInForm() {
   const [mfaRequired, setMfaRequired] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -45,55 +46,98 @@ function SignInForm() {
   };
 
   return (
-    <div className="pb-auth-wrap">
-      <div className="pb-card pb-auth-card">
-        <div className="pb-card-body p-4">
-          <div className="text-center mb-4">
-            <span className="pb-brand-mark mx-auto mb-2" style={{ width: 44, height: 44 }}>▶</span>
-            <h1 className="h5 mb-0" style={{ color: 'var(--bs-emphasis-color)' }}>PlayBeat Digital Admin</h1>
-            <small style={{ color: 'var(--bs-secondary-color)' }}>Restricted — authorized administrators only</small>
+    <main className="pb-auth-page">
+      <div className="pb-auth-grid" aria-hidden="true" />
+      <div className="pb-auth-frame">
+        <section className="pb-auth-story" aria-label="PlayBeat Digital">
+          <Link href="/" className="pb-auth-brand" aria-label="PlayBeat Digital home">
+            <span className="pb-brand-mark"><span aria-hidden="true">▶</span></span>
+            <span className="pb-auth-brand-word">PLAYBEAT <span>DIGITAL</span></span>
+          </Link>
+
+          <div className="pb-auth-story-copy">
+            <span className="pb-auth-eyebrow pb-auth-story-eyebrow"><span aria-hidden="true">✦</span> ADMIN PANEL · AUTHORIZED PERSONNEL ONLY</span>
+            <h2>Powering your <em>digital business</em> ecosystem</h2>
+            <p>Sign in to manage analytics, security, systems and operations from a single control center.</p>
           </div>
 
-          {error && <div className="alert alert-danger py-2">{error}</div>}
+          <div className="pb-auth-capabilities" aria-label="Admin panel capabilities">
+            <span><i aria-hidden="true">↗</i> Analytics</span>
+            <span><i aria-hidden="true">⌑</i> Security</span>
+            <span><i aria-hidden="true">▤</i> Systems</span>
+            <span><i aria-hidden="true">⚙</i> Management</span>
+          </div>
 
-          <form onSubmit={submit}>
-            <div className="mb-3">
-              <label className="form-label" htmlFor="email">Admin email</label>
-              <input id="email" type="email" className="form-control" required autoComplete="username"
-                value={email} onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@playbeat.digital" />
+          <div className="pb-auth-story-footer">
+            <span>PLAYBEAT DIGITAL</span>
+            <span>SECURE ADMIN ACCESS</span>
+          </div>
+        </section>
+
+        <section className="pb-auth-panel" aria-labelledby="signin-title">
+          <div className="pb-auth-form-wrap">
+            <div className="pb-auth-mobile-brand">
+              <span className="pb-brand-mark"><span aria-hidden="true">▶</span></span>
+              <span className="pb-auth-brand-word">PLAYBEAT <span>DIGITAL</span></span>
             </div>
-            <div className="mb-3">
-              <label className="form-label" htmlFor="pw">Password</label>
-              <input id="pw" type="password" className="form-control" required autoComplete="current-password"
-                value={password} onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••" />
+            <div className="pb-auth-heading">
+              <h1 id="signin-title">Sign in</h1>
+              <p>Access your PlayBeat Digital admin panel</p>
             </div>
 
-            {mfaRequired && (
+            {error && <div className="alert alert-danger py-2" role="alert" aria-live="polite">{error}</div>}
+
+            <form onSubmit={submit} className="pb-auth-form">
               <div className="mb-3">
-                <label className="form-label" htmlFor="totp">Authenticator code</label>
-                <input id="totp" className="form-control pb-mono" inputMode="numeric" maxLength={6}
-                  autoComplete="one-time-code" value={totp}
-                  onChange={(e) => setTotp(e.target.value.replace(/\D/g, ''))}
-                  placeholder="123456" />
+                <label className="form-label" htmlFor="email">Admin email</label>
+                <div className="pb-auth-input-wrap">
+                  <span className="pb-auth-input-icon" aria-hidden="true">◎</span>
+                  <input id="email" type="email" className="form-control" required autoComplete="username"
+                    value={email} onChange={(e) => setEmail(e.target.value)}
+                    placeholder="name@playbeat.digital" />
+                </div>
               </div>
-            )}
+              <div className="mb-3">
+                <label className="form-label" htmlFor="pw">Password</label>
+                <div className="pb-auth-input-wrap">
+                  <span className="pb-auth-input-icon" aria-hidden="true">▣</span>
+                  <input id="pw" type={showPassword ? 'text' : 'password'} className="form-control" required autoComplete="current-password"
+                    value={password} onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password" />
+                  <button type="button" className="pb-auth-password-toggle" onClick={() => setShowPassword((visible) => !visible)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword}>
+                    {showPassword ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+              </div>
 
-            <button className="btn btn-primary w-100" disabled={loading}>
-              {loading ? 'Signing in…' : mfaRequired ? 'Verify code' : 'Sign in to dashboard'}
-            </button>
-          </form>
+              {mfaRequired && (
+                <div className="mb-3">
+                  <label className="form-label" htmlFor="totp">Authenticator code</label>
+                  <input id="totp" className="form-control pb-mono" inputMode="numeric" maxLength={6}
+                    autoComplete="one-time-code" value={totp}
+                    onChange={(e) => setTotp(e.target.value.replace(/\D/g, ''))}
+                    placeholder="6-digit code" />
+                </div>
+              )}
 
-          <div className="alert alert-secondary small mt-3 mb-0">
-            Sessions are served by an httpOnly, Secure, SameSite cookie with
-            server-side expiry, idle timeout and immediate revocation. Storefront
-            accounts (<Link href="/signin">/signin</Link>) are a separate identity
-            domain and never grant admin access (README §8.1).
+              <button className="btn btn-primary w-100 pb-auth-submit" disabled={loading}>
+                {loading ? 'Signing in…' : mfaRequired ? 'Verify code' : <> <span aria-hidden="true">→</span> Sign in</>}
+              </button>
+            </form>
+
+            <div className="pb-auth-security">
+              <span className="pb-auth-lock" aria-hidden="true">▣</span>
+              <p><strong>Secure Access</strong><br />Encrypted connection · Administrator access only</p>
+            </div>
           </div>
-        </div>
+          <footer className="pb-auth-panel-footer">
+            <span>© {new Date().getFullYear()} PLAYBEAT DIGITAL</span>
+            <span>All rights reserved</span>
+          </footer>
+        </section>
       </div>
-    </div>
+    </main>
   );
 }
 
