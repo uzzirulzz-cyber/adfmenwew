@@ -8,7 +8,7 @@ import { LAYOUTS, LAYOUT_IDS, DEFAULT_LAYOUT_ID } from '../../../../lib/theme/la
 import { guard, json, bodyOf } from '../../../../lib/adminRoute';
 
 const KEY = 'admin.dashboards';
-const SECTIONS = ['superieur', 'proui', 'analytics', 'currency', 'executive', 'breeze', 'stellar', 'starpro'];
+const SECTIONS = ['superieur', 'proui', 'rixzo', 'analytics', 'currency', 'executive', 'breeze', 'stellar', 'starpro'];
 async function state() { return (await getConfig(KEY)) || { section: 'superieur', layout: 'superieur-dark' }; }
 
 export async function GET(req) {

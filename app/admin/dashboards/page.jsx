@@ -6,6 +6,7 @@ import { SECTIONS } from '../../../components/DashboardSections';
 import { applyTheme, THEME_PRESETS } from '../../../lib/theme';
 
 const PREMIUM_SETUPS = [
+  { key: 'rixzo', label: 'Rixzo Atelier', section: 'rixzo', layout: 'rixzo-art', theme: 'rixzo-atelier' },
   { key: 'superieur', label: 'Superieur', section: 'superieur', layout: 'superieur-dark', theme: 'superieur-violet' },
   { key: 'proui', label: 'ProUI', section: 'proui', layout: 'proui-light', theme: 'proui-cyan' },
 ].map((s) => ({ ...s, preset: THEME_PRESETS.find((p) => p.preset === s.theme) }));

@@ -6,7 +6,7 @@
 // source is unconfigured the value renders as an em dash with the reason — never 0-as-fake-data.
 import { useState } from 'react';
 import { APPS, APP_COLORS } from '../lib/apps';
-import { fmtMoney, fmtNumber, asText, DataTable } from './ui';
+import { fmtMoney, fmtNumber, asText, DataTable, fmtDateTime } from './ui';
 
 const appLabel = (slug) => (APPS.find((a) => a.slug === slug) || {}).short || String(slug || '—');
 
@@ -911,7 +911,120 @@ export function SectionProUI({ overview, finance }) {
   );
 }
 
+function RixzoRevenueChart({ rows }) {
+  if (!rows.length) return <div className="pb-rixzo-empty">No dated paid orders are available for this window.</div>;
+  const peak = Math.max(1, ...rows.map((row) => Number(row.pkr) || 0));
+  const points = rows.map((row, index) => {
+    const x = rows.length === 1 ? 360 : 20 + (index / (rows.length - 1)) * 680;
+    const y = 174 - ((Number(row.pkr) || 0) / peak) * 142;
+    return [x, y];
+  });
+  const line = points.map(([x, y], index) => `${index ? 'L' : 'M'}${x},${y}`).join(' ');
+  const area = `${line} L${points.at(-1)[0]},184 L${points[0][0]},184 Z`;
+  return (
+    <div className="pb-rixzo-chart-wrap">
+      <svg className="pb-rixzo-chart" viewBox="0 0 720 200" role="img" aria-label={`Paid PKR revenue across ${rows.length} reported days`}>
+        <defs><linearGradient id="rixzoRevenueFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="var(--pb-accent)" stopOpacity=".28" /><stop offset="1" stopColor="var(--pb-accent)" stopOpacity="0" /></linearGradient></defs>
+        {[38, 86, 134, 184].map((y) => <line key={y} x1="0" x2="720" y1={y} y2={y} className="pb-rixzo-gridline" />)}
+        <path d={area} fill="url(#rixzoRevenueFill)" />
+        <path d={line} className="pb-rixzo-line" />
+        {points.map(([x, y], index) => <circle key={rows[index].date} cx={x} cy={y} r="3.5" className="pb-rixzo-point"><title>{rows[index].date}: {fmtMoney(rows[index].pkr)}</title></circle>)}
+      </svg>
+      <div className="pb-rixzo-axis"><span>{rows[0].date}</span><span>{rows.at(-1).date}</span></div>
+    </div>
+  );
+}
+
+export function SectionRixzo({ overview, analytics, finance }) {
+  const [range, setRange] = useState(30);
+  const k = overview?.kpis || {};
+  const headline = finance?.headline || {};
+  const byDay = finance?.byDay || [];
+  const cutoff = Date.now() - range * 86400000;
+  const chartRows = byDay.filter((row) => {
+    const time = new Date(`${row.date}T00:00:00`).getTime();
+    return Number.isFinite(time) && time >= cutoff;
+  });
+  const appRows = overview?.byApp || [];
+  const maxApp = Math.max(1, ...appRows.map((row) => row.pkr || 0));
+  const settlements = finance?.settlements || [];
+  const events = overview?.activity || [];
+  const avgOrder = analytics?.commerce?.averageOrderValuePkr;
+  const tiles = [
+    { label: 'Paid orders', value: fmtNumber(headline.paidCount ?? k.paidOrders), note: 'Counted once per source record', tone: 'mint' },
+    { label: 'Net revenue', value: headline.netPkr == null ? '—' : fmtMoney(headline.netPkr), note: 'PKR · after reported refunds', tone: 'cream' },
+    { label: 'Average order', value: avgOrder == null ? '—' : fmtMoney(avgOrder), note: 'Paid PKR orders only', tone: 'lilac' },
+    { label: 'Refunded', value: fmtMoney(headline.refundedPkr ?? 0), note: `${fmtNumber(headline.refundedCount ?? 0)} reported refunds`, tone: 'rose' },
+  ];
+
+  return (
+    <div className="pb-rixzo">
+      <section className="pb-rixzo-hero">
+        <div className="pb-rixzo-hero-copy">
+          <div className="pb-rixzo-eyebrow"><span className="pb-rixzo-orbit" /> SALES ATELIER <span>·</span> LIVE REPORT</div>
+          <h2>Make room<br />for <em>the real story.</em></h2>
+          <p>One clear view of paid orders and revenue across your connected PlayBeat applications.</p>
+          <div className="pb-rixzo-hero-total"><span>Net revenue · PKR</span><strong>{headline.netPkr == null ? '—' : fmtMoney(headline.netPkr)}</strong></div>
+          <div className="pb-rixzo-hero-foot">{fmtNumber(headline.paidCount ?? k.paidOrders)} paid orders <i /> {fmtNumber(headline.pendingCount ?? k.pendingOrders)} awaiting payment</div>
+        </div>
+        <div className="pb-rixzo-hero-art" aria-hidden="true">
+          <div className="pb-rixzo-art-ring ring-one" /><div className="pb-rixzo-art-ring ring-two" />
+          <div className="pb-rixzo-art-sun" /><div className="pb-rixzo-art-stem" />
+          <div className="pb-rixzo-art-note">PLAYBEAT<br /><span>COMMERCE / 01</span></div>
+        </div>
+        <div className="pb-rixzo-hero-stamp"><span>FIELD<br />NOTES</span><strong>PB</strong></div>
+      </section>
+
+      <div className="pb-rixzo-kpis">
+        {tiles.map((tile, index) => <article className={`pb-rixzo-kpi ${tile.tone}`} key={tile.label}>
+          <span className="pb-rixzo-kpi-index">0{index + 1}</span><span className="pb-rixzo-kpi-label">{tile.label}</span>
+          <strong>{tile.value}</strong><small>{tile.note}</small>
+        </article>)}
+      </div>
+
+      <div className="pb-rixzo-grid">
+        <section className="pb-rixzo-panel pb-rixzo-sales-chart">
+          <div className="pb-rixzo-panel-head"><div><span className="pb-rixzo-overline">THE SALES CURVE</span><h3>Revenue, in rhythm.</h3></div>
+            <div className="pb-rixzo-ranges" aria-label="Revenue date range">{[7, 30, 90].map((days) => <button type="button" key={days} className={range === days ? 'active' : ''} aria-pressed={range === days} onClick={() => setRange(days)}>{days}D</button>)}</div>
+          </div>
+          <RixzoRevenueChart rows={chartRows} />
+          <div className="pb-rixzo-chart-caption"><span>Paid PKR revenue by day</span><span>{chartRows.length} reported days <i /> {finance?.windowDays || 90}-day source window</span></div>
+        </section>
+        <section className="pb-rixzo-panel pb-rixzo-app-breakdown">
+          <div className="pb-rixzo-panel-head"><div><span className="pb-rixzo-overline">BY APPLICATION</span><h3>Where it gathers.</h3></div><span className="pb-rixzo-flower">✳</span></div>
+          {appRows.length ? <div className="pb-rixzo-app-list">{appRows.map((row) => <div className="pb-rixzo-app-row" key={row.app}>
+            <div className="pb-rixzo-app-label"><span style={{ '--app-color': APP_COLORS[row.app] || 'var(--pb-accent)' }} />{appLabel(row.app)}<strong>{fmtMoney(row.pkr || 0)}</strong></div>
+            <div className="pb-rixzo-app-track"><i style={{ width: `${Math.min(100, (row.pkr || 0) / maxApp * 100)}%`, background: APP_COLORS[row.app] || 'var(--pb-accent)' }} /></div>
+          </div>)}</div> : <div className="pb-rixzo-empty">No paid revenue by application has been reported.</div>}
+          <a href="/admin/finance" className="pb-rixzo-text-link">Open the finance ledger <span>↗</span></a>
+        </section>
+      </div>
+
+      <div className="pb-rixzo-bottom-grid">
+        <section className="pb-rixzo-panel pb-rixzo-ledger">
+          <div className="pb-rixzo-panel-head"><div><span className="pb-rixzo-overline">LATEST PAID RECORDS</span><h3>Quietly adding up.</h3></div><a href="/admin/finance" className="pb-rixzo-mini-link">All finance ↗</a></div>
+          {settlements.length ? <div className="pb-rixzo-ledger-list">{settlements.slice(0, 5).map((row, index) => <div className="pb-rixzo-ledger-row" key={`${row.app}-${row.sourceId || row.reference || index}`}>
+            <span className="pb-rixzo-ledger-mark" style={{ '--app-color': APP_COLORS[row.app] || 'var(--pb-accent)' }}>{String(index + 1).padStart(2, '0')}</span>
+            <span className="pb-rixzo-ledger-ref"><strong>{asText(row.reference || row.sourceId || 'Order')}</strong><small>{appLabel(row.app)} · {fmtDateTime(row.settledAt || row.date || null)}</small></span>
+            <span className="pb-rixzo-ledger-amount">{fmtMoney(row.amount, row.currency)}</span>
+          </div>)}</div> : <div className="pb-rixzo-empty">No paid order records are available from connected sources yet.</div>}
+        </section>
+        <section className="pb-rixzo-panel pb-rixzo-activity">
+          <div className="pb-rixzo-panel-head"><div><span className="pb-rixzo-overline">THE WORK BEHIND IT</span><h3>Recent signals.</h3></div><span className="pb-rixzo-activity-icon">↗</span></div>
+          {events.length ? <div className="pb-rixzo-event-list">{events.slice(0, 4).map((event, index) => <div className="pb-rixzo-event" key={`${event.at || event.time || index}-${event.action}`}>
+            <span className={`pb-rixzo-event-dot ${event.result === 'success' ? 'ok' : 'attention'}`} />
+            <span><strong>{asText(event.action)}</strong><small>{asText(event.actor || 'System')} · {asText(event.time || event.at || '')}</small></span>
+          </div>)}</div> : <div className="pb-rixzo-empty">No audit signals have been recorded yet.</div>}
+          <a href="/admin/audit-log" className="pb-rixzo-text-link">Explore activity <span>↗</span></a>
+        </section>
+      </div>
+      <p className="pb-rixzo-source-note">Figures are drawn from the finance and overview feeds. Missing source data stays unfilled; no trend or value is estimated.</p>
+    </div>
+  );
+}
+
 export const SECTIONS = [
+  { id: 'rixzo', label: 'Rixzo Atelier', Component: SectionRixzo, note: 'An editorial sales dashboard: real paid revenue, application mix, dated sales curve, finance ledger and audit signals.' },
   { id: 'superieur', label: 'Superieur', Component: SectionSuperieur, note: 'Hero banner with a live ticker strip, delta KPI cards, income-by-application list, integration-task readiness card, performance strip and an invoice ledger with status pills.' },
   { id: 'proui', label: 'ProUI', Component: SectionProUI, note: 'Welcome banner with inline KPI stats, flat widgets with a coloured top border and round icon badge, two inline mini-chart cards, settlement ledger and source-status panel.' },
   { id: 'analytics', label: 'Analytics', Component: SectionAnalytics, note: 'Pastel metric banners, order overview, earnings, product/review/sales row.' },
