@@ -597,14 +597,19 @@ export function SectionSuperieur({ overview, finance }) {
             <a href="#superieur" title="Jump to sections">↕</a>
           </div>
         </div>
-        <h2 className="pb-sup-hero-title">Every application, one ledger</h2>
-        <p className="pb-sup-hero-sub">
-          Paid revenue across the five PlayBeat applications, counted once per source record.
-          {' '}{fmtNumber(connected)} of {fmtNumber(total)} applications connected.
-        </p>
-        <div className="pb-sup-hero-figure">
-          <div className="pb-sup-hero-value">{dash(fmtMoney(net))}</div>
-          <div className="pb-sup-hero-label">net revenue · reporting currency PKR</div>
+        <div className="pb-sup-hero-main">
+          <div className="pb-sup-hero-copy">
+            <h2 className="pb-sup-hero-title">Every application, one ledger</h2>
+            <p className="pb-sup-hero-sub">
+              Paid revenue across the five PlayBeat applications, counted once per source record.
+              {' '}{fmtNumber(connected)} of {fmtNumber(total)} applications connected.
+            </p>
+            <div className="pb-sup-hero-figure">
+              <div className="pb-sup-hero-value">{dash(fmtMoney(net))}</div>
+              <div className="pb-sup-hero-label">net revenue · reporting currency PKR</div>
+            </div>
+          </div>
+          <iframe className="pb-sup-brand-art" src="/brand/playbeat-digital-mark.html" title="Animated PlayBeat Digital logo" loading="lazy" tabIndex={-1} />
         </div>
         <div className="pb-sup-ticker">
           {ticker.length ? ticker.map((d, i) => {

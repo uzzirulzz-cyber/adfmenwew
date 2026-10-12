@@ -862,6 +862,10 @@ a {
 .pb-sup-hero-actions a { width:28px; height:28px; display:grid; place-items:center; border-radius:8px;
   background:rgba(255,255,255,.12); color:#fff; text-decoration:none; font-size:.8rem; }
 .pb-sup-hero-actions a:hover { background:rgba(255,255,255,.24); }
+.pb-sup-hero-main { position:relative; display:flex; align-items:center; min-height:180px; }
+.pb-sup-hero-copy { position:relative; z-index:1; width:min(68%, 680px); padding:8px 0 16px; }
+.pb-sup-brand-art { position:absolute; z-index:0; top:50%; right:3%; width:250px; height:220px; transform:translateY(-50%);
+  border:0; opacity:.96; pointer-events:none; mix-blend-mode:screen; }
 .pb-sup-hero-title { font-size:1.5rem; font-weight:700; margin:16px 0 4px; letter-spacing:-.01em; }
 .pb-sup-hero-sub { font-size:.86rem; opacity:.86; margin:0 0 14px; max-width:62ch; }
 .pb-sup-hero-figure { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
@@ -874,6 +878,11 @@ a {
 .pb-sup-tick-dir.up { color:#2fe6a8; } .pb-sup-tick-dir.down { color:#ff6b81; } .pb-sup-tick-dir.flat { color:rgba(255,255,255,.8); }
 .pb-sup-tick-val { font-size:1.05rem; font-weight:700; }
 .pb-sup-tick-code { font-size:.68rem; letter-spacing:.12em; text-transform:uppercase; opacity:.84; }
+@media (max-width: 767.98px) {
+  .pb-sup-hero-main { min-height:0; }
+  .pb-sup-hero-copy { width:100%; }
+  .pb-sup-brand-art { display:none; }
+}
 
 .pb-sup-kpi { border-radius:16px; padding:18px; background:var(--pb-surface); border:1px solid var(--pb-line); }
 .pb-sup-kpi-title { font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; opacity:.86; }
