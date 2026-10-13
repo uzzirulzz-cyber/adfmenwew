@@ -14,10 +14,10 @@ export async function POST(req) {
     return NextResponse.json({ error: 'invalid csrf token' }, { status: 403 });
   }
   const session = await getSession();
-  const sid = currentSid();
+  const sid = await currentSid();
   if (sid) await revokeSession(sid);   // replaying the old cookie now fails
-  clearSessionCookie();
-  cookies().set(CSRF_COOKIE, '', { path: '/', maxAge: 0 });
+  await clearSessionCookie();
+  (await cookies()).set(CSRF_COOKIE, '', { path: '/', maxAge: 0 });
   await audit({ action: 'auth.signout', actor: session?.email || 'unknown', result: 'success' });
   return NextResponse.json({ ok: true });
 }

@@ -83,10 +83,10 @@ export async function POST(req) {
     { id: user.id, email: user.email, role: user.role, apps: user.apps },
     { ip, userAgent }
   );
-  setSessionCookie(sid);
+  await setSessionCookie(sid);
 
   const csrf = issueCsrfToken();
-  cookies().set(CSRF_COOKIE, csrf, csrfCookieOptions());
+  (await cookies()).set(CSRF_COOKIE, csrf, csrfCookieOptions());
 
   await recordLoginSuccess(ipKey, acctKey);
   await audit({
