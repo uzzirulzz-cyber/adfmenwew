@@ -46,8 +46,15 @@ The app root `/` redirects to `/admin`.
 | `PB_CONNECTOR_MODE` | `live` or `demo` (see §6) |
 | `ADMIN_EMAIL` / `ADMIN_PIN` | unique 5-digit bootstrap PIN, consumed once by `seed:admin` |
 | `DATABASE_URL` | PostgreSQL connection string required in production; local development can use the JSON fallback |
+| `LEAD_ENGINE_APP_URL` | URL of the separately deployed PlayBeat Lead Engine UI + API service; required to load it in the Lead Engine sidebar page |
 
 Everything else is per-connector (§10).
+
+The **Lead Engine** item under **Customers & Growth** embeds the standalone
+Lead Engine service. Deploy that service separately (it serves both its React UI
+and API), set `LEAD_ENGINE_APP_URL` in the admin app's server environment, and
+restart/redeploy the admin app. For local development, the standalone service
+defaults to `http://localhost:3001`.
 
 ---
 
