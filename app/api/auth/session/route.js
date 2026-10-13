@@ -11,13 +11,14 @@ export async function GET(req) {
   if (!session) {
     return NextResponse.json({ authenticated: false }, { status: 401 });
   }
-  const permissions = Object.fromEntries(ACTIONS.map((a) => [a, roleCan(session.role, a)]));
+  const permissions = Object.fromEntries(ACTIONS.map((a) => [a, !session.pinSetupRequired && roleCan(session.role, a)]));
   return NextResponse.json({
     authenticated: true,
     user: {
       email: session.email,
       role: session.role,
       apps: session.apps,
+      pinSetupRequired: Boolean(session.pinSetupRequired),
       issuedAt: new Date(session.issuedAt).toISOString(),
       expiresAt: new Date(session.expiresAt).toISOString(),
     },

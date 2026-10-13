@@ -4,9 +4,10 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '../../../../lib/auth/sessions';
 import { can, denyReason, ROLE_MATRIX, ROLES } from '../../../../lib/rbac';
-import { listUsers, setUserRole, revokeAllForUser } from '../../../../lib/auth/store';
+import { listUsers, upsertUser, setUserRole, revokeAllForUser } from '../../../../lib/auth/store';
 import { readAudit, audit } from '../../../../lib/audit';
 import { csrfValid } from '../../../../lib/auth/guard';
+import { hashPin } from '../../../../lib/auth/credentials';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -14,17 +15,23 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const session = await getSession({ touch: true });
   if (!session) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
-  if (!can(session, 'dashboard:view')) {
+  if (!session.pinSetupRequired && !can(session, 'dashboard:view')) {
     return NextResponse.json({ error: 'forbidden', reason: denyReason(session, 'dashboard:view') }, { status: 403 });
   }
 
-  // Never leak password hashes or MFA secrets to the client.
-  const users = (await listUsers()).map((u) => ({
+  // Never leak credential hashes or MFA secrets to the client.
+  const allUsers = await listUsers();
+  const visibleUsers = session.pinSetupRequired
+    ? allUsers.filter((user) => user.id === session.userId)
+    : allUsers;
+  const users = visibleUsers.map((u) => ({
     id: u.id,
     name: u.name,
     email: u.email,
     role: u.role,
     apps: u.apps || [],
+    pinConfigured: Boolean(u.pinHash),
+    needsPinSetup: !u.pinHash,
     mfaSecret: Boolean(u.mfaSecret),
     disabled: Boolean(u.disabled),
     updatedAt: u.updatedAt || null,
@@ -32,7 +39,7 @@ export async function GET() {
 
   return NextResponse.json({
     users,
-    audit: await readAudit(200),
+    audit: session.pinSetupRequired ? [] : await readAudit(200),
     matrix: ROLE_MATRIX,
     roles: ROLES,
   });
@@ -45,6 +52,43 @@ export async function POST(req) {
 
   let body = {};
   try { body = await req.json(); } catch { /* ignore */ }
+
+  if (body.action === 'set-pin') {
+    const pin = String(body.pin || '');
+    if (!/^\d{5}$/.test(pin)) {
+      return NextResponse.json({ error: 'PIN must be exactly 5 digits.' }, { status: 400 });
+    }
+
+    const userId = String(body.userId || '');
+    if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400 });
+
+    const target = (await listUsers()).find((user) => user.id === userId);
+    if (!target) return NextResponse.json({ error: 'user not found' }, { status: 404 });
+
+    const isSelf = target.id === session.userId || target.email === session.email;
+    if (!isSelf && !can(session, 'apps:manage')) {
+      return NextResponse.json({ error: 'forbidden', reason: denyReason(session, 'apps:manage') }, { status: 403 });
+    }
+
+    const updatedUser = {
+      ...target,
+      pinHash: await hashPin(pin),
+      passwordHash: null,
+      updatedAt: new Date().toISOString(),
+      updatedBy: session.email,
+    };
+    await upsertUser(updatedUser);
+    const revoked = await revokeAllForUser(target.id);
+    await audit({
+      action: 'auth.pin.set',
+      actor: session.email,
+      target: target.email,
+      result: 'success',
+      reason: `revoked ${revoked} live session(s)`,
+    });
+
+    return NextResponse.json({ ok: true, revoked, userId: target.id });
+  }
 
   if (body.action !== 'set-role') {
     return NextResponse.json({ error: 'unsupported action' }, { status: 400 });

@@ -6,7 +6,7 @@ export default function ProfilePage() {
   return (
     <LivePanel
       title="Profile & Account"
-      subtitle="Your own admin preferences: display name, timezone, landing page, table density and failure notifications. Your password is owned by the identity store and is not edited here."
+      subtitle="Your own admin preferences: display name, timezone, landing page, table density and failure notifications. Manage your sign-in PIN from Staff."
       endpoint="/api/admin/profile"
       fields={[
         { name: 'displayName', label: 'Display name' },

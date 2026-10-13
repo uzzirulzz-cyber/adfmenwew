@@ -184,6 +184,12 @@ export default function AdminShell({ children }) {
     }
   }, [status, router, pathname]);
 
+  useEffect(() => {
+    if (status === 'ready' && session?.user?.pinSetupRequired && pathname !== '/admin/staff') {
+      router.replace('/admin/staff?setupPin=1');
+    }
+  }, [status, session, pathname, router]);
+
   // Real connector statuses (server-checked), not the static registry values.
   useEffect(() => {
     if (status !== 'ready' || bootstrapped.current) return;

@@ -1,7 +1,7 @@
 // POST /api/auth/admin-login  — README §8.3
 import { NextResponse } from 'next/server';
 import { findUserByEmail, createSession } from '../../../../lib/auth/store';
-import { verifyPassword, verifyTotp } from '../../../../lib/auth/credentials';
+import { verifyPassword, verifyPin, verifyTotp } from '../../../../lib/auth/credentials';
 import { setSessionCookie, CSRF_COOKIE } from '../../../../lib/auth/sessions';
 import { loginAllowed, recordLoginFailure, recordLoginSuccess, issueCsrfToken, csrfCookieOptions } from '../../../../lib/auth/guard';
 import { audit } from '../../../../lib/audit';
@@ -30,6 +30,7 @@ export async function POST(req) {
   }
 
   const email = String(body.email || '').trim().toLowerCase();
+  const pin = String(body.pin || '');
   const password = String(body.password || '');
   const totp = String(body.totp || '');
   const ipKey = `ip:${ip}`;
@@ -45,13 +46,19 @@ export async function POST(req) {
     );
   }
 
-  if (!email || !password) {
-    return NextResponse.json({ error: 'Email and password are required.' }, { status: 400 });
+  if (!email || (!pin && !password)) {
+    return NextResponse.json({ error: 'Email and PIN are required.' }, { status: 400 });
   }
 
   const user = await findUserByEmail(email);
-  // Identical outcome for unknown account and wrong password — no user enumeration.
-  const ok = await verifyPassword(password, user?.passwordHash || null);
+  // Accounts migrate through their current password once; afterward only PIN auth remains.
+  // Accounts without a PIN cannot use a PIN value as a password during migration.
+  const legacyPasswordLogin = !user?.pinHash && Boolean(password);
+  const ok = user?.pinHash
+    ? await verifyPin(pin, user.pinHash)
+    : legacyPasswordLogin
+      ? await verifyPassword(password, user?.passwordHash || null)
+      : await verifyPin(pin, null);
 
   if (!user || !ok || user.disabled) {
     await recordLoginFailure(ipKey, acctKey);
@@ -93,7 +100,8 @@ export async function POST(req) {
 
   return NextResponse.json({
     ok: true,
-    redirect: safeNext(body.next),
+    redirect: !user.pinHash && legacyPasswordLogin ? '/admin/staff?setupPin=1' : safeNext(body.next),
+    pinSetupRequired: !user.pinHash && legacyPasswordLogin,
     user: { email: user.email, role: user.role, apps: user.apps },
   });
 }

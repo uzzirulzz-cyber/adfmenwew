@@ -16,10 +16,12 @@ npm run seed:admin              # creates the first admin account
 npm run dev                     # http://localhost:3000 -> /admin
 ```
 
-`npm run seed:admin` reads `ADMIN_EMAIL`, `ADMIN_PASSWORD` (min 12 chars) and
-optionally `ADMIN_TOTP_SECRET` from `.env.local`, hashes the password and writes
-the account to PostgreSQL when `DATABASE_URL` is set, or to `data/users.json`
-for local development. **Remove `ADMIN_PASSWORD` from `.env.local` afterwards.**
+`npm run seed:admin` reads `ADMIN_EMAIL` and preferably `ADMIN_PIN` (exactly 5
+digits), plus optional `ADMIN_TOTP_SECRET`, hashes the credential and writes the
+account to PostgreSQL when `DATABASE_URL` is set, or to `data/users.json` for
+local development. `ADMIN_PASSWORD` (12+ characters) is accepted only for
+legacy-account migration. Remove the bootstrap credential from `.env.local`
+after seeding.
 
 ```bash
 npm run build && npm start      # production
@@ -42,7 +44,7 @@ The app root `/` redirects to `/admin`.
 | `PB_SESSION_SECRET` | random 32+ bytes — `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"` |
 | `PB_CSRF_SECRET` | a second random value |
 | `PB_CONNECTOR_MODE` | `live` or `demo` (see §6) |
-| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | consumed once by `seed:admin` |
+| `ADMIN_EMAIL` / `ADMIN_PIN` | unique 5-digit bootstrap PIN, consumed once by `seed:admin` |
 | `DATABASE_URL` | PostgreSQL connection string required in production; local development can use the JSON fallback |
 
 Everything else is per-connector (§10).
@@ -84,10 +86,12 @@ Sports & Broadcast (betting stays disabled), Deals & Listings, Reports & Exports
 - `pb_admin_sid` = `HttpOnly; Secure; SameSite=Lax; Path=/`
 - 30-minute sliding idle timeout, 8-hour absolute lifetime
 - Sign-out revokes server-side, so replaying the old cookie fails
-- bcrypt password verification (cost ≥ 12) with constant-time comparison
+- bcrypt PIN verification (cost ≥ 12); each admin has an individual PIN
+- Existing password accounts can use their password once to enroll a PIN; after PIN setup, password login is disabled
+- The migration session is restricted to PIN setup; other admin permissions remain denied until setup completes
 - Optional TOTP MFA (RFC 6238) with ±1 step clock drift tolerance
 - Per-IP **and** per-account throttling with exponential lockout
-- Identical response for unknown account and wrong password (no enumeration)
+- Identical response for unknown account and wrong credential (no enumeration)
 - Open-redirect guard on the post-login `next` target
 - CSRF double-submit token on every state-changing request
 - `middleware.js` gate + authoritative re-check in every Route Handler
@@ -203,20 +207,23 @@ revocation is immediate and an old token cannot outlive a role change.
 
 ### §8.3 Sign-in flow
 
-1. `POST /api/auth/admin-login` with email + password over TLS.
+1. `POST /api/auth/admin-login` with email + 5-digit PIN over TLS.
 2. Throttle/lockout checked **before** credential verification.
-3. Password verified against a bcrypt hash (cost ≥ 12); comparison is
-   constant-time; an unknown account still performs a verification against a
-   dummy hash so timing does not leak existence.
+3. PIN is verified against an individual bcrypt hash (cost ≥ 12); an unknown
+   account still performs a dummy hash verification so timing does not leak
+   account existence.
 4. TOTP challenge if the account has MFA enrolled.
 5. On success: mint the session, set the cookie, issue the CSRF token, write
    `auth.signin` to the audit log.
 6. Redirect to the validated `next` target — internal `/admin/*` only.
+7. Existing password-based accounts can use their current password once and
+   are sent to Staff to set a PIN. Setting or resetting a PIN revokes that
+   user's active sessions and clears the legacy password hash.
 
 > **Algorithm note.** §8.3 historically specified Argon2id; this build uses
 > **bcrypt via `bcryptjs`**, a pure-JS zero-native-dependency implementation, so
 > the project installs and builds without a compiler toolchain. bcrypt at cost ≥ 12
-> is an acceptable password hash — it is **not** a raw or MD5/SHA-1 digest. To move
+> is used for PIN hashes — PINs are never stored in plaintext. To move
 > to Argon2id, replace the two functions in `lib/auth/credentials.js` with
 > `@node-rs/argon2`; no caller changes.
 

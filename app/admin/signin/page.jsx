@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Suspense } from 'react';
@@ -8,12 +8,19 @@ import { Suspense } from 'react';
 function SignInForm() {
   const router = useRouter();
   const [email, setEmail] = useState('');
+  const [pin, setPin] = useState('');
   const [password, setPassword] = useState('');
   const [totp, setTotp] = useState('');
   const [mfaRequired, setMfaRequired] = useState(false);
+  const [legacyMode, setLegacyMode] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [pinSetNotice, setPinSetNotice] = useState(false);
+
+  useEffect(() => {
+    setPinSetNotice(new URLSearchParams(window.location.search).get('pinSet') === '1');
+  }, []);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -26,7 +33,7 @@ function SignInForm() {
       const res = await fetch('/api/auth/admin-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, totp, next }),
+        body: JSON.stringify({ email, ...(legacyMode ? { password } : { pin }), totp, next }),
       });
       const data = await res.json().catch(() => ({}));
 
@@ -82,9 +89,10 @@ function SignInForm() {
             </div>
             <div className="pb-auth-heading">
               <h1 id="signin-title">Sign in</h1>
-              <p>Access your PlayBeat Digital admin panel</p>
+              <p>Access your PlayBeat Digital admin panel with your email and PIN.</p>
             </div>
 
+            {pinSetNotice && <div className="alert alert-success py-2" role="status">Your PIN was saved. Sign in with your new PIN.</div>}
             {error && <div className="alert alert-danger py-2" role="alert" aria-live="polite">{error}</div>}
 
             <form onSubmit={submit} className="pb-auth-form">
@@ -97,19 +105,40 @@ function SignInForm() {
                     placeholder="name@playbeat.digital" />
                 </div>
               </div>
-              <div className="mb-3">
-                <label className="form-label" htmlFor="pw">Password</label>
-                <div className="pb-auth-input-wrap">
-                  <span className="pb-auth-input-icon" aria-hidden="true">▣</span>
-                  <input id="pw" type={showPassword ? 'text' : 'password'} className="form-control" required autoComplete="current-password"
-                    value={password} onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password" />
-                  <button type="button" className="pb-auth-password-toggle" onClick={() => setShowPassword((visible) => !visible)}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword}>
-                    {showPassword ? 'Hide' : 'Show'}
+              {!legacyMode ? (
+                <div className="mb-3">
+                  <label className="form-label" htmlFor="pin">5-digit PIN</label>
+                  <div className="pb-auth-input-wrap">
+                    <span className="pb-auth-input-icon" aria-hidden="true">▣</span>
+                    <input id="pin" type="password" className="form-control" required inputMode="numeric"
+                      autoComplete="current-password" pattern="[0-9]{5}" maxLength={5}
+                      value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                      placeholder="Enter your 5-digit PIN" />
+                  </div>
+                  <button type="button" className="btn btn-link btn-sm px-0 mt-1"
+                    onClick={() => { setLegacyMode(true); setError(''); }}>
+                    Use my existing password once to set up a PIN
                   </button>
                 </div>
-              </div>
+              ) : (
+                <div className="mb-3">
+                  <label className="form-label" htmlFor="pw">Existing password (one-time PIN setup)</label>
+                  <div className="pb-auth-input-wrap">
+                    <span className="pb-auth-input-icon" aria-hidden="true">▣</span>
+                    <input id="pw" type={showPassword ? 'text' : 'password'} className="form-control" required autoComplete="current-password"
+                      value={password} onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter your current password" />
+                    <button type="button" className="pb-auth-password-toggle" onClick={() => setShowPassword((visible) => !visible)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword}>
+                      {showPassword ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+                  <button type="button" className="btn btn-link btn-sm px-0 mt-1"
+                    onClick={() => { setLegacyMode(false); setPassword(''); setError(''); }}>
+                    Back to PIN sign-in
+                  </button>
+                </div>
+              )}
 
               {mfaRequired && (
                 <div className="mb-3">
@@ -122,7 +151,7 @@ function SignInForm() {
               )}
 
               <button className="btn btn-primary w-100 pb-auth-submit" disabled={loading}>
-                {loading ? 'Signing in…' : mfaRequired ? 'Verify code' : <> <span aria-hidden="true">→</span> Sign in</>}
+                {loading ? 'Signing in…' : mfaRequired ? 'Verify code' : <> <span aria-hidden="true">→</span> {legacyMode ? 'Continue to PIN setup' : 'Sign in'}</>}
               </button>
             </form>
 

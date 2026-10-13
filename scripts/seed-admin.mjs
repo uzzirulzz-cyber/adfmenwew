@@ -20,16 +20,22 @@ if (fs.existsSync(envFile)) {
 }
 
 const email = (process.env.ADMIN_EMAIL || 'admin@playbeat.digital').toLowerCase();
+const pin = process.env.ADMIN_PIN;
 const password = process.env.ADMIN_PASSWORD;
 const rounds = Math.min(15, Math.max(10, Number(process.env.BCRYPT_ROUNDS || 12)));
 
-if (!password || password.length < 12) {
-  console.error('ADMIN_PASSWORD must be set in .env.local and be at least 12 characters.');
+if (pin && !/^\d{5}$/.test(pin)) {
+  console.error('ADMIN_PIN must be exactly 5 digits.');
+  process.exit(1);
+}
+
+if (!pin && (!password || password.length < 12)) {
+  console.error('Set ADMIN_PIN to an exactly 5-digit value, or use ADMIN_PASSWORD (12+ characters) for legacy migration.');
   process.exit(1);
 }
 
 const dataDir = process.env.PB_DATA_DIR || path.join(process.cwd(), 'data');
-const hash = await bcrypt.hash(password, rounds);
+const hash = !pin && password ? await bcrypt.hash(password, rounds) : null;
 
 const record = {
   id: crypto.randomUUID(),
@@ -37,7 +43,8 @@ const record = {
   name: process.env.ADMIN_NAME || 'Super Admin',
   role: process.env.ADMIN_ROLE || 'Super Admin',
   apps: ['*'],
-  passwordHash: hash,
+  pinHash: pin ? await bcrypt.hash(pin, rounds) : null,
+  passwordHash: pin ? null : hash,
   mfaSecret: process.env.ADMIN_TOTP_SECRET || null,
   disabled: false,
   createdAt: new Date().toISOString(),
@@ -65,4 +72,5 @@ if (connectionString) {
   fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
   console.log(`Seeded ${email} (role: ${record.role}) into ${usersFile}`);
 }
-console.log('Now remove ADMIN_PASSWORD from .env.local.');
+console.log(`Seeded ${email} with ${pin ? 'PIN' : 'legacy password'} authentication.`);
+console.log('Remove ADMIN_PIN / ADMIN_PASSWORD from .env.local after seeding.');

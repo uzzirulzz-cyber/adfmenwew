@@ -4,7 +4,10 @@
 // ============================================================
 const BASE = process.env.TEST_BASE || 'http://127.0.0.1:3000';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const ADMIN_PIN = process.env.ADMIN_PIN;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+const ADMIN_CREDENTIAL = ADMIN_PIN ? { pin: ADMIN_PIN } : { password: ADMIN_PASSWORD };
+const WRONG_PIN = String((Number(ADMIN_PIN || 0) + 1) % 100000).padStart(5, '0');
 const SECOND_EMAIL = 'readonly@playbeat.digital';
 const SECOND_PASSWORD = process.env.SECOND_PASSWORD || '';
 
@@ -46,8 +49,8 @@ async function call(j, path, { method = 'GET', body, headers = {} } = {}) {
   return res;
 }
 
-async function login(j, email, password, totp) {
-  return call(j, '/api/auth/admin-login', { method: 'POST', body: { email, password, totp } });
+async function login(j, email, credential, totp) {
+  return call(j, '/api/auth/admin-login', { method: 'POST', body: { email, ...credential, totp } });
 }
 
 console.log(`\nPlayBeat admin — acceptance tests against ${BASE}\n`);
@@ -79,20 +82,21 @@ console.log(`\nPlayBeat admin — acceptance tests against ${BASE}\n`);
   check('2a  Signed-out deep link is redirected to signin?next=/admin/orders',
     loc.includes('/admin/signin') && loc.includes('%2Fadmin%2Forders'), loc);
 
-  const evil = await login(j, ADMIN_EMAIL, ADMIN_PASSWORD, process.env.ADMIN_TOTP);
+  const evil = await login(j, ADMIN_EMAIL, ADMIN_CREDENTIAL, process.env.ADMIN_TOTP);
   const data = await evil.json();
   check('2b  Login succeeds with correct credentials', evil.status === 200 && data.ok === true, `HTTP ${evil.status}`);
   check('2c  Open-redirect guard rejects an external next target',
-    data.redirect === '/admin', `redirect=${data.redirect}`);
+    data.redirect === '/admin' || (data.pinSetupRequired && data.redirect === '/admin/staff?setupPin=1'),
+    `redirect=${data.redirect}`);
 }
 
 /* 3. Wrong password is refused and does not reveal whether the account exists. */
 {
   const jWrong = jar();
-  const r1 = await jWrong.absorb(await login(jWrong, ADMIN_EMAIL, 'definitely-wrong-password'));
+  const r1 = await jWrong.absorb(await login(jWrong, ADMIN_EMAIL, { pin: WRONG_PIN }));
   const b1 = await r1.json();
   const jGhost = jar();
-  const r2 = await jGhost.absorb(await login(jGhost, 'nobody@playbeat.digital', 'definitely-wrong-password'));
+  const r2 = await jGhost.absorb(await login(jGhost, 'nobody@playbeat.digital', { pin: WRONG_PIN }));
   const b2 = await r2.json();
   check('3a  Wrong password refused', r1.status === 401, `HTTP ${r1.status}`);
   check('3b  Unknown account gives an IDENTICAL response (no enumeration)',
@@ -103,7 +107,7 @@ console.log(`\nPlayBeat admin — acceptance tests against ${BASE}\n`);
 let admin = jar();
 let adminCsrf = null;
 {
-  const res = await login(admin, ADMIN_EMAIL, ADMIN_PASSWORD, process.env.ADMIN_TOTP);
+  const res = await login(admin, ADMIN_EMAIL, ADMIN_CREDENTIAL, process.env.ADMIN_TOTP);
   const body = await res.json();
   check('4a  Session cookie pb_admin_sid issued', admin.store.has('pb_admin_sid'), 'cookie present');
   adminCsrf = admin.store.get('pb_csrf') || null;
@@ -213,7 +217,7 @@ let adminCsrf = null;
 /* 10. Sign-out revokes server-side; the old cookie cannot be replayed. */
 {
   const j = jar();
-  await login(j, ADMIN_EMAIL, ADMIN_PASSWORD, process.env.ADMIN_TOTP);
+  await login(j, ADMIN_EMAIL, ADMIN_CREDENTIAL, process.env.ADMIN_TOTP);
   const csrf = j.store.get('pb_csrf');
   const savedCookie = j.header();
 

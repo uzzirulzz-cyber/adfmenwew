@@ -33,7 +33,8 @@ Start from [.env.example](./.env.example) and set all required values before dep
 - `PB_CSRF_SECRET`
 - `DATABASE_URL` (or `POSTGRES_URL`)
 - `ADMIN_EMAIL`
-- `ADMIN_PASSWORD` for bootstrapping only
+- `ADMIN_PIN` for initial bootstrap; use a unique PIN per account
+- `ADMIN_PASSWORD` only when migrating an existing password-based account
 - connector credentials for each enabled service:
   - `PLAYBEAT_DIGITAL_API_URL`, `PLAYBEAT_DIGITAL_API_KEY`
   - `PLAYBEAT_LIVE_API_URL`, `PLAYBEAT_LIVE_API_KEY`
@@ -67,7 +68,7 @@ npm run db:migrate
 npm run seed:admin
 ```
 
-Then remove `ADMIN_PASSWORD` from the environment after seeding, and keep it out of the deployment configuration unless the platform requires it at startup for a one-time migration step.
+Then remove the bootstrap credential from the environment. Existing password-based accounts can sign in once with their current password to reach the PIN setup page; setting a PIN clears the legacy password hash and revokes active sessions. Admins can set/reset PINs for other accounts from Staff. PINs must be exactly five digits and must be communicated to each user out of band.
 
 ---
 
@@ -106,7 +107,7 @@ Before production traffic:
 
 1. Provision a managed PostgreSQL database and set `DATABASE_URL` in Vercel.
 2. Run `npm run db:migrate` against that database.
-3. Seed the first administrator with `npm run seed:admin`, then remove `ADMIN_PASSWORD`.
+3. Seed the first administrator with `npm run seed:admin`, then remove `ADMIN_PIN` / `ADMIN_PASSWORD`.
 4. If importing existing users, insert their JSON records into `pb_users`; do not import `sessions.json`, so old sessions are invalidated.
 5. Verify sign-in and session replay checks on a live instance.
 6. Verify role changes revoke prior sessions immediately.
@@ -196,7 +197,7 @@ Before starting the production deployment:
 - [ ] Run `npm run db:migrate` against the production database
 - [ ] Store secrets outside source control
 - [ ] Generate and rotate the session and CSRF secrets
-- [ ] Seed admin account and remove bootstrap password from the environment
+- [ ] Seed admin account and remove bootstrap credentials from the environment
 - [ ] Verify the app is not operating in static export mode
 - [ ] Validate a fresh admin login through `/admin/signin`
 - [ ] Validate CSRF protection on a mutating API call
