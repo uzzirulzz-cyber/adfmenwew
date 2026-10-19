@@ -1,4 +1,5 @@
 'use client';
+import AISection from './AISection';
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
@@ -160,6 +161,7 @@ export default function DashboardWorkspace() {
         <PageHeader title="Central Command Center" subtitle="Live overview across connected PlayBeat applications. Every figure comes from the source records and sync state." actions={<><button className="btn btn-sm btn-outline-secondary" onClick={() => refreshDashboard()} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh data'}</button><button className="btn btn-sm btn-outline-secondary" onClick={() => setCustomizing((value) => !value)}>{customizing ? 'Close editor' : 'Customize dashboard'}</button><Link href="/admin/apps" className="btn btn-sm btn-primary">＋ Applications</Link></>} />
       </div>
     </div>
+    <AISection />
     {mode && <DataSourceBanner mode={mode} statuses={connectorStates} />}
     <div className="d-flex justify-content-end mb-2"><small style={{ color: 'var(--bs-secondary-color)' }}>Dashboard data refreshed · {fmtDateTime(lastRefreshed)}</small></div>
     {message && <div className="alert alert-secondary py-2 small" role="status">{message}</div>}

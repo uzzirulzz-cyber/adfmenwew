@@ -1,4 +1,5 @@
 'use client';
+import AISection from '../../../components/AISection';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSession } from '../../../components/SessionProvider';
@@ -36,6 +37,7 @@ export default function CommandCenter() {
         actions={<Link className="btn btn-sm btn-outline-secondary" href="/admin/applications">Application health</Link>}
       />
 
+    <AISection />
       <div className="row g-3 mb-3">
         <div className="col-6 col-lg-3"><StatCard label="Applications" value={fmtNumber(APPS.length)} sub={`${connected} reporting connected`} icon="bi-grid-3x3-gap" /></div>
         <div className="col-6 col-lg-3"><StatCard label="Connector mode" value={String(health?.mode || '—')} sub={health?.mode === 'demo' ? 'fixtures, clearly labelled' : 'live endpoints only'} icon="bi-plug" /></div>
