@@ -1,3 +1,4 @@
+import Script from 'next/script';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import './globals.css';
@@ -20,6 +21,7 @@ export default function RootLayout({ children }) {
       </head>
       <body>
         <ThemeProvider>{children}</ThemeProvider>
+        <Script src="https://gateway.playbeat.live/playbeat-apps.js" strategy="afterInteractive" />
       </body>
     </html>
   );
